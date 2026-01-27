@@ -1,0 +1,11 @@
+com\codearena\userservice\controller\UserController.class
+com\codearena\userservice\dto\ApiResponse.class
+com\codearena\userservice\service\UserService.class
+com\codearena\userservice\UserServiceApplication.class
+com\codearena\userservice\UserServiceApplication$1.class
+com\codearena\userservice\model\User$UserBuilder.class
+com\codearena\userservice\model\User.class
+com\codearena\userservice\dto\ApiResponse$ApiResponseBuilder.class
+com\codearena\userservice\dto\UserDTO$UserDTOBuilder.class
+com\codearena\userservice\dto\UserDTO.class
+com\codearena\userservice\repository\UserRepository.class
