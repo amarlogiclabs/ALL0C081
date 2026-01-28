@@ -1,6 +1,6 @@
-# Code Arena Java Microservices
+# Codeverse Java Microservices
 
-This directory contains Java microservices that work with the Code Arena application.
+This directory contains Java microservices that work with the Codeverse application.
 
 ## Architecture
 

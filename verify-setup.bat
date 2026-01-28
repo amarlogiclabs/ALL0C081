@@ -1,11 +1,11 @@
 @echo off
-REM Verify microservices setup for Code Arena
+REM Verify microservices setup for Codeverse
 
 setlocal enabledelayedexpansion
 
 echo.
 echo ============================================
-echo Code Arena - Microservices Verification
+echo Codeverse - Microservices Verification
 echo ============================================
 echo.
 

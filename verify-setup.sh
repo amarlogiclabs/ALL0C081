@@ -1,9 +1,9 @@
 #!/bin/bash
-# Verify microservices setup for Code Arena
+# Verify microservices setup for Codeverse
 
 echo ""
 echo "============================================"
-echo "Code Arena - Microservices Verification"
+echo "Codeverse - Microservices Verification"
 echo "============================================"
 echo ""
 

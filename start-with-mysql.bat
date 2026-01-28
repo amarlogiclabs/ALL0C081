@@ -1,12 +1,12 @@
 @echo off
-REM Code Arena - Complete Startup Script with MySQL Connection
+REM Codeverse - Complete Startup Script with MySQL Connection
 REM This script starts all services and connects to your local MySQL database
 
 setlocal enabledelayedexpansion
 
 echo.
 echo ════════════════════════════════════════════════════════════
-echo      CODE ARENA - MYSQL CONNECTION ^& STARTUP SCRIPT
+echo      CODEVERSE - MYSQL CONNECTION ^& STARTUP SCRIPT
 echo ════════════════════════════════════════════════════════════
 echo.
 
@@ -65,7 +65,7 @@ cd /d "code-arena-microservices\user-service" || exit /b 1
 echo Starting Spring Boot application on port 8090...
 echo This window will show Java service logs...
 echo.
-start "Code Arena - Java Microservice (8090)" cmd /k "mvn spring-boot:run"
+start "Codeverse - Java Microservice (8090)" cmd /k "mvn spring-boot:run"
 timeout /t 5 /nobreak
 
 echo.
@@ -78,7 +78,7 @@ cd /d "..\..\code-arena-live\server" || exit /b 1
 echo Starting Express backend on port 5000...
 echo Database: MySQL (%MYSQL_HOST%:%MYSQL_PORT%)
 echo.
-start "Code Arena - Express Backend (5000)" cmd /k "npm run dev"
+start "Codeverse - Express Backend (5000)" cmd /k "npm run dev"
 timeout /t 3 /nobreak
 
 echo.
@@ -90,7 +90,7 @@ echo.
 cd /d ".." || exit /b 1
 echo Starting Vite development server on port 8080...
 echo.
-start "Code Arena - React Frontend (8080)" cmd /k "npm run dev"
+start "Codeverse - React Frontend (8080)" cmd /k "npm run dev"
 timeout /t 3 /nobreak
 
 echo.

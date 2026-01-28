@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Code Arena - Complete Startup Script with MySQL Connection
+# Codeverse - Complete Startup Script with MySQL Connection
 # This script starts all services and connects to your local MySQL database
 
 echo ""
 echo "════════════════════════════════════════════════════════════"
-echo "     CODE ARENA - MYSQL CONNECTION & STARTUP SCRIPT"
+echo "     CODEVERSE - MYSQL CONNECTION & STARTUP SCRIPT"
 echo "════════════════════════════════════════════════════════════"
 echo ""
 

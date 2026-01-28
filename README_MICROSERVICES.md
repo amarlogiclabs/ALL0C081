@@ -1,4 +1,4 @@
-# Code Arena - Microservices Architecture
+# Codeverse - Microservices Architecture
 
 A complete full-stack application with microservices architecture connecting React frontend, Express.js backend, Java Spring Boot microservices, and MySQL database.
 
