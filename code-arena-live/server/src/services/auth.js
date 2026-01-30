@@ -80,6 +80,7 @@ export const signin = async (email, password) => {
     );
 
     if (users.length === 0) {
+      console.log(`❌ Signin failed: User not found for email '${email}'`);
       return { success: false, error: 'Invalid email or password' };
     }
 
@@ -87,6 +88,7 @@ export const signin = async (email, password) => {
     const isValid = await verifyPassword(password, user.password_hash);
 
     if (!isValid) {
+      console.log(`❌ Signin failed: Invalid password for user '${email}'`);
       return { success: false, error: 'Invalid email or password' };
     }
 

@@ -9,8 +9,12 @@ router.post('/signup', async (req, res) => {
   try {
     const { email, password, username } = req.body;
 
+    // Trim inputs
+    const trimmedEmail = email?.trim();
+    const trimmedUsername = username?.trim();
+
     // Validation
-    if (!email || !password || !username) {
+    if (!trimmedEmail || !password || !trimmedUsername) {
       return res.status(400).json({ error: 'Email, password, and username are required' });
     }
 
@@ -18,19 +22,19 @@ router.post('/signup', async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
-    if (username.length < 3) {
+    if (trimmedUsername.length < 3) {
       return res.status(400).json({ error: 'Username must be at least 3 characters' });
     }
 
-    const result = await signup(email, password, username);
-    
+    const result = await signup(trimmedEmail, password, trimmedUsername);
+
     if (!result.success) {
       return res.status(400).json({ error: result.error });
     }
 
     // Auto sign in after signup
-    const signInResult = await signin(email, password);
-    
+    const signInResult = await signin(trimmedEmail, password);
+
     if (!signInResult.success) {
       return res.status(400).json({ error: signInResult.error });
     }
@@ -51,12 +55,15 @@ router.post('/signin', async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    // Trim inputs
+    const trimmedEmail = email?.trim();
+
     // Validation
-    if (!email || !password) {
+    if (!trimmedEmail || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    const result = await signin(email, password);
+    const result = await signin(trimmedEmail, password);
 
     if (!result.success) {
       return res.status(401).json({ error: result.error });
