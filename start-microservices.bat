@@ -56,7 +56,7 @@ echo.
 
 REM Start Java Microservice
 echo Starting Java User Service on port 8090...
-cd code-arena-microservices\user-service
+cd codeverse-microservices\user-service
 start "Code Arena - User Service (Java)" cmd /k "mvn spring-boot:run"
 cd ..\..\
 

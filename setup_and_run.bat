@@ -149,17 +149,17 @@ REM ----------------------------------------------------------------------------
 echo [STEP 5/7] Installing Project Dependencies...
 
 REM Backend
-if exist "code-arena-live\server\package.json" (
+if exist "codeverse-live\server\package.json" (
     echo    - Installing Backend dependencies...
-    pushd "code-arena-live\server"
+    pushd "codeverse-live\server"
     call npm install
     popd
 )
 
 REM Frontend
-if exist "code-arena-live\package.json" (
+if exist "codeverse-live\package.json" (
     echo    - Installing Frontend dependencies...
-    pushd "code-arena-live"
+    pushd "codeverse-live"
     call npm install
     popd
 )
@@ -177,7 +177,7 @@ echo [STEP 7/7] Starting Services...
 
 REM 1. Java User Service (Port 8090)
 echo    - Starting Java User Service (Port 8090)...
-cd code-arena-microservices\user-service
+cd codeverse-microservices\user-service
 start "Code Arena - User Service (Java)" cmd /k "mvn spring-boot:run"
 cd ..\..\
 
@@ -186,7 +186,7 @@ timeout /t 5 /nobreak >nul
 
 REM 2. Express Backend (Port 5000)
 echo    - Starting Express Backend (Port 5000)...
-cd code-arena-live\server
+cd codeverse-live\server
 start "Code Arena - Backend (Express)" cmd /k "npm run dev"
 cd ..\..\
 
@@ -195,7 +195,7 @@ timeout /t 3 /nobreak >nul
 
 REM 3. React Frontend (Port 8080)
 echo    - Starting React Frontend (Port 8080)...
-cd code-arena-live
+cd codeverse-live
 start "Code Arena - Frontend (React)" cmd /k "npm run dev"
 cd ..
 

@@ -69,21 +69,21 @@ if errorlevel 1 (
 REM Check directories
 echo.
 echo Checking directory structure:
-if exist "code-arena-live\src" (
+if exist "codeverse-live\src" (
     echo [OK] Frontend
 ) else (
     echo [X] Frontend
     set /a ERROR_COUNT=!ERROR_COUNT!+1
 )
 
-if exist "code-arena-live\server\src" (
+if exist "codeverse-live\server\src" (
     echo [OK] Backend
 ) else (
     echo [X] Backend
     set /a ERROR_COUNT=!ERROR_COUNT!+1
 )
 
-if exist "code-arena-microservices\user-service\src" (
+if exist "codeverse-microservices\user-service\src" (
     echo [OK] Microservice
 ) else (
     echo [X] Microservice

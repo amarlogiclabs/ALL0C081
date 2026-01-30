@@ -53,7 +53,7 @@ mkdir -p logs
 
 # Start Java Microservice
 echo "Starting Java User Service on port 8090..."
-cd code-arena-microservices/user-service
+cd codeverse-microservices/user-service
 mvn spring-boot:run > ../../logs/user-service.log 2>&1 &
 JAVA_PID=$!
 echo $JAVA_PID > ../../logs/java.pid
@@ -64,7 +64,7 @@ sleep 5
 
 # Start Express Backend
 echo "Starting Express Backend on port 5000..."
-cd code-arena-live/server
+cd codeverse-live/server
 npm run dev > ../../logs/backend.log 2>&1 &
 EXPRESS_PID=$!
 echo $EXPRESS_PID > ../../logs/express.pid
@@ -75,7 +75,7 @@ sleep 3
 
 # Start React Frontend
 echo "Starting React Frontend on port 8080..."
-cd code-arena-live
+cd codeverse-live
 npm run dev > ../logs/frontend.log 2>&1 &
 FRONTEND_PID=$!
 echo $FRONTEND_PID > ../logs/frontend.pid

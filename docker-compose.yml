@@ -26,7 +26,7 @@ services:
   # Java User Microservice
   user-service:
     build:
-      context: ./code-arena-microservices/user-service
+      context: ./codeverse-microservices/user-service
       dockerfile: Dockerfile
     container_name: codeverse-user-service
     ports:
@@ -49,7 +49,7 @@ services:
   # Express Backend
   backend:
     build:
-      context: ./code-arena-live/server
+      context: ./codeverse-live/server
       dockerfile: Dockerfile
     container_name: codeverse-backend
     ports:
@@ -77,7 +77,7 @@ services:
   # React Frontend
   frontend:
     build:
-      context: ./code-arena-live
+      context: ./codeverse-live
       dockerfile: Dockerfile
     container_name: codeverse-frontend
     ports:

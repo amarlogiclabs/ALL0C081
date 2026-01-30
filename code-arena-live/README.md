@@ -85,7 +85,7 @@ jdbc:mysql://127.0.0.1:3306/codeverse
 
 ```
 codeverse/
-├── code-arena-live/              # Frontend + Express Backend
+├── codeverse-live/              # Frontend + Express Backend
 │   ├── src/                      # React UI
 │   ├── server/                   # Express API
 │   │   ├── routes/
@@ -94,7 +94,7 @@ codeverse/
 │   │   └── .env                  # MySQL config
 │   └── package.json
 │
-├── code-arena-microservices/
+├── codeverse-microservices/
 │   └── user-service/             # Java Spring Boot service
 │       ├── src/main/java/
 │       ├── src/main/resources/
@@ -179,7 +179,7 @@ This will start:
 ### Terminal 1 — Java Microservice
 
 ```bash
-cd code-arena-microservices/user-service
+cd codeverse-microservices/user-service
 mvn spring-boot:run
 ```
 
@@ -194,7 +194,7 @@ Tomcat started on port(s): 8090
 ### Terminal 2 — Express Backend
 
 ```bash
-cd code-arena-live/server
+cd codeverse-live/server
 npm install
 npm run dev
 ```
@@ -210,7 +210,7 @@ Server running on http://localhost:5000
 ### Terminal 3 — React Frontend
 
 ```bash
-cd code-arena-live
+cd codeverse-live
 npm install
 npm run dev
 ```
