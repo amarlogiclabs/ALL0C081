@@ -52,7 +52,7 @@ export default function FriendlyMatchBattle() {
     const [selectedLanguage, setSelectedLanguage] = useState<Language>("python");
     const [code, setCode] = useState(getDefaultCode("python"));
     const [isRunning, setIsRunning] = useState(false);
-    const [consoleOutput, setConsoleOutput] = useState("");
+    const [executionResult, setExecutionResult] = useState<any>(null);
     const [testResults, setTestResults] = useState<any[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
@@ -60,6 +60,7 @@ export default function FriendlyMatchBattle() {
     const [isLoadingRoom, setIsLoadingRoom] = useState(true);
     const [compilerInfo, setCompilerInfo] = useState<any>(null);
     const [showExitDialog, setShowExitDialog] = useState(false);
+    const [showConsole, setShowConsole] = useState(false);
 
     // Derived User IDs
     const userId = user ? user.id : (localStorage.getItem('userId') || '0');
@@ -141,7 +142,8 @@ export default function FriendlyMatchBattle() {
 
     const handleRun = async () => {
         setIsRunning(true);
-        setConsoleOutput("Running code...\n");
+        setExecutionResult({ loading: true });
+        setShowConsole(true);
         try {
             const response = await api.post('/api/compiler/run', {
                 code,
@@ -151,10 +153,22 @@ export default function FriendlyMatchBattle() {
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'Execution failed');
 
-            const output = data.stdout || data.stderr || data.compile_output || data.message;
-            setConsoleOutput(output);
+            // Store complete execution result
+            setExecutionResult({
+                stdout: data.stdout || '',
+                stderr: data.stderr || '',
+                compile_output: data.compile_output || '',
+                message: data.message || '',
+                status: data.status || { id: 0, description: 'Unknown' },
+                time: data.time || null,
+                memory: data.memory || null,
+                hasError: !!(data.stderr || data.compile_output || (data.status && data.status.id !== 3))
+            });
         } catch (error) {
-            setConsoleOutput(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            setExecutionResult({
+                stderr: error instanceof Error ? error.message : 'Unknown error',
+                hasError: true
+            });
         } finally {
             setIsRunning(false);
         }
@@ -316,10 +330,96 @@ export default function FriendlyMatchBattle() {
                             Submit
                         </Button>
                     </div>
-                    {/* Console Output */}
-                    {consoleOutput && (
-                        <div className="border-t border-gray-800 bg-gray-950 p-3 max-h-32 overflow-y-auto">
-                            <pre className="text-xs text-gray-300 font-mono whitespace-pre-wrap">{consoleOutput}</pre>
+                    {/* Enhanced Console Output */}
+                    {showConsole && executionResult && (
+                        <div className="border-t border-gray-800 bg-gray-950 flex flex-col max-h-64">
+                            {/* Console Header */}
+                            <div className="flex items-center justify-between px-3 py-2 border-b border-gray-800 bg-gray-900">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs font-semibold text-gray-400 uppercase">Console</span>
+                                    {executionResult.loading ? (
+                                        <Loader2 className="w-3 h-3 animate-spin text-blue-400" />
+                                    ) : executionResult.hasError ? (
+                                        <AlertTriangle className="w-3 h-3 text-red-400" />
+                                    ) : (
+                                        <CheckCircle2 className="w-3 h-3 text-green-400" />
+                                    )}
+                                </div>
+                                <button
+                                    onClick={() => setShowConsole(false)}
+                                    className="text-gray-500 hover:text-gray-300"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+
+                            {/* Console Content */}
+                            <div className="flex-1 overflow-y-auto p-3 space-y-3">
+                                {executionResult.loading ? (
+                                    <div className="text-xs text-gray-400 font-mono">Running code...</div>
+                                ) : (
+                                    <>
+                                        {/* Compilation Error */}
+                                        {executionResult.compile_output && (
+                                            <div className="space-y-1">
+                                                <div className="text-xs font-bold text-red-400 uppercase tracking-wide">
+                                                    Compilation Error
+                                                </div>
+                                                <pre className="text-xs text-red-300 font-mono whitespace-pre-wrap bg-red-950/30 border border-red-900/50 rounded p-2">
+                                                    {executionResult.compile_output}
+                                                </pre>
+                                            </div>
+                                        )}
+
+                                        {/* Runtime Error */}
+                                        {executionResult.stderr && !executionResult.compile_output && (
+                                            <div className="space-y-1">
+                                                <div className="text-xs font-bold text-red-400 uppercase tracking-wide">
+                                                    Runtime Error
+                                                </div>
+                                                <pre className="text-xs text-red-300 font-mono whitespace-pre-wrap bg-red-950/30 border border-red-900/50 rounded p-2">
+                                                    {executionResult.stderr}
+                                                </pre>
+                                            </div>
+                                        )}
+
+                                        {/* Standard Output */}
+                                        {executionResult.stdout && (
+                                            <div className="space-y-1">
+                                                <div className="text-xs font-bold text-green-400 uppercase tracking-wide">
+                                                    Output
+                                                </div>
+                                                <pre className="text-xs text-gray-300 font-mono whitespace-pre-wrap bg-gray-900 border border-gray-700 rounded p-2">
+                                                    {executionResult.stdout}
+                                                </pre>
+                                            </div>
+                                        )}
+
+                                        {/* Execution Info */}
+                                        {executionResult.status && (
+                                            <div className="flex items-center gap-4 text-xs text-gray-400 font-mono pt-2 border-t border-gray-800">
+                                                <span className={cn(
+                                                    "font-semibold",
+                                                    executionResult.status.id === 3 ? "text-green-400" : "text-red-400"
+                                                )}>
+                                                    Status: {executionResult.status.description}
+                                                </span>
+                                                {executionResult.time && (
+                                                    <span className="text-cyan-400">Time: {executionResult.time}s</span>
+                                                )}
+                                                {executionResult.memory && (
+                                                    <span className="text-cyan-400">Memory: {executionResult.memory} KB</span>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* Message fallback */}
+                                        {executionResult.message && !executionResult.stdout && !executionResult.stderr && !executionResult.compile_output && (
+                                            <div className="text-xs text-gray-400 font-mono">{executionResult.message}</div>
+                                        )}
+                                    </>
+                                )}
+                            </div>
                         </div>
                     )}
                 </div>

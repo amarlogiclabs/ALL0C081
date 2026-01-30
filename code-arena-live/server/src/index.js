@@ -28,6 +28,11 @@ const corsOptions = {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
 
+    // Development mode: Allow ALL origins
+    if (process.env.NODE_ENV === 'development') {
+      return callback(null, true);
+    }
+
     // Check for allowed specific origins
     const allowedOrigins = [
       'http://localhost:5173',
@@ -35,7 +40,7 @@ const corsOptions = {
       'http://127.0.0.1:5173',
       'http://127.0.0.1:8080',
       process.env.CLIENT_URL
-    ].filter(Boolean); // Filter out undefined if CLIENT_URL is missing
+    ].filter(Boolean);
 
     if (allowedOrigins.indexOf(origin) !== -1) {
       return callback(null, true);
@@ -49,6 +54,7 @@ const corsOptions = {
       return callback(null, true);
     }
 
+    console.error(`❌ CORS blocked origin: ${origin}`);
     const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
     return callback(new Error(msg), false);
   },

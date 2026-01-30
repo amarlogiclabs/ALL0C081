@@ -60,9 +60,27 @@ if %errorLevel% == 0 (
 echo.
 
 REM ----------------------------------------------------------------------------
-REM 4. Check & Upgrade Dependencies
+REM 4. Start MySQL Service
 REM ----------------------------------------------------------------------------
-echo [STEP 3/6] Checking & Upgrading Dependencies...
+echo [STEP 3/7] Starting MySQL Service...
+net start MYSQL80 >nul 2>&1
+if %errorLevel% == 0 (
+    echo [OK] MySQL service started.
+) else (
+    echo [INFO] MySQL might already be running or failed to start.
+    sc query MYSQL80 | find "RUNNING" >nul
+    if %errorLevel% == 0 (
+        echo [OK] MySQL is already running.
+    ) else (
+        echo [WARNING] MySQL service issue detected. Please check manually.
+    )
+)
+echo.
+
+REM ----------------------------------------------------------------------------
+REM 5. Check & Upgrade Dependencies
+REM ----------------------------------------------------------------------------
+echo [STEP 4/7] Checking & Upgrading Dependencies...
 
 REM --- MinGW (GCC) ---
 echo    - Checking GCC...
@@ -126,9 +144,9 @@ echo [OK] Dependencies check complete.
 echo.
 
 REM ----------------------------------------------------------------------------
-REM 5. Install NPM Dependencies
+REM 6. Install NPM Dependencies
 REM ----------------------------------------------------------------------------
-echo [STEP 4/6] Installing Project Dependencies...
+echo [STEP 5/7] Installing Project Dependencies...
 
 REM Backend
 if exist "code-arena-live\server\package.json" (
@@ -149,13 +167,13 @@ echo [OK] Project dependencies installed.
 echo.
 
 REM ----------------------------------------------------------------------------
-REM 6. Start Services (Inline)
+REM 7. Start Services (Inline)
 REM ----------------------------------------------------------------------------
-echo [STEP 5/6] Stopping existing services...
+echo [STEP 6/7] Stopping existing services...
 REM Using the PowerShell cleaner script
 powershell -ExecutionPolicy Bypass -File "%~dp0restart-services.ps1"
 
-echo [STEP 6/6] Starting Services...
+echo [STEP 7/7] Starting Services...
 
 REM 1. Java User Service (Port 8090)
 echo    - Starting Java User Service (Port 8090)...

@@ -51,6 +51,8 @@ export default function BattleArena() {
   const [isSpectating, setIsSpectating] = useState(false);
   const [showForfeitModal, setShowForfeitModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [timerActive, setTimerActive] = useState(true);
+  const [isAccepted, setIsAccepted] = useState(false);
 
   // WebSocket
   const {
@@ -71,6 +73,23 @@ export default function BattleArena() {
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, []);
+
+  // Battle timer countdown
+  useEffect(() => {
+    if (!timerActive) return;
+
+    const interval = setInterval(() => {
+      setBattleTime(prev => {
+        if (prev <= 0) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [timerActive]);
 
   // Fetch battle data
   useEffect(() => {
@@ -175,7 +194,7 @@ export default function BattleArena() {
       const data = await res.json();
 
       if (data.success) {
-        const { verdict, stdout, stderr, compileOutput, testCasesPassed, testCasesTotal } = data.result;
+        const { verdict, stdout, stderr, compileOutput, testResults, testCasesPassed, testCasesTotal } = data.result;
 
         if (compileOutput) {
           addConsoleMessage("info", `Compiler Output:\n${compileOutput}`);
@@ -193,6 +212,17 @@ export default function BattleArena() {
           addConsoleMessage("success", `✓ Passed ${testCasesPassed}/${testCasesTotal} test cases.`);
         } else {
           addConsoleMessage("error", `✗ Verdict: ${verdict}`);
+          addConsoleMessage("error", `Test Cases: ${testCasesPassed}/${testCasesTotal} passed`);
+        }
+
+        // Display individual test results
+        if (testResults && testResults.length > 0) {
+          addConsoleMessage("info", "\nTest Case Details:");
+          testResults.forEach((tc: any) => {
+            const status = tc.passed ? "✓" : "✗";
+            const msgType = tc.passed ? "success" : "error";
+            addConsoleMessage(msgType, `${status} Test ${tc.testCase}: ${tc.status}`);
+          });
         }
       } else {
         addConsoleMessage("error", data.error || "Execution failed");
@@ -219,12 +249,44 @@ export default function BattleArena() {
       const data = await res.json();
 
       if (data.success) {
-        const { verdict, testCasesPassed, testCasesTotal } = data.result;
+        const { verdict, stdout, stderr, compileOutput, testResults, testCasesPassed, testCasesTotal, executionTime } = data.result;
+
+        // Stop the timer after submission
+        setTimerActive(false);
+
+        if (compileOutput) {
+          addConsoleMessage("info", `Compiler Output:\n${compileOutput}`);
+        }
+
+        if (stderr) {
+          addConsoleMessage("error", `Errors:\n${stderr}`);
+        }
+
+        if (stdout) {
+          addConsoleMessage("info", `Output:\n${stdout}`);
+        }
+
         if (verdict === 'ACCEPTED') {
           addConsoleMessage("success", `✓ Accepted! Passed ${testCasesPassed}/${testCasesTotal} cases.`);
+          setIsAccepted(true);
         } else {
           addConsoleMessage("error", `✗ Verdict: ${verdict}`);
+          addConsoleMessage("error", `Test Cases: ${testCasesPassed}/${testCasesTotal} passed`);
+          setIsAccepted(false);
         }
+
+        // Display individual test results
+        if (testResults && testResults.length > 0) {
+          addConsoleMessage("info", "\nTest Case Details:");
+          testResults.forEach((tc: any) => {
+            const status = tc.passed ? "✓" : "✗";
+            const msgType = tc.passed ? "success" : "error";
+            addConsoleMessage(msgType, `${status} Test ${tc.testCase}: ${tc.status}`);
+          });
+        }
+
+        addConsoleMessage("info", `Execution Time: ${executionTime || 0}ms`);
+
         wsSubmitCode(code, selectedLanguage);
 
         // Wait a moment then redirect to results
@@ -234,10 +296,12 @@ export default function BattleArena() {
       } else {
         addConsoleMessage("error", "Submission failed");
         setMyStatus("idle");
+        setTimerActive(true); // Resume timer if submission failed
       }
     } catch (e) {
       addConsoleMessage("error", "Network error during submission");
       setMyStatus("idle");
+      setTimerActive(true); // Resume timer if submission failed
     } finally {
       setIsSubmitting(false);
     }
@@ -411,10 +475,29 @@ export default function BattleArena() {
                   size="sm"
                   onClick={handleSubmit}
                   disabled={isRunning || isSubmitting}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                  className={cn(
+                    "text-primary-foreground",
+                    isAccepted
+                      ? "bg-green-600 hover:bg-green-700"
+                      : "bg-primary hover:bg-primary/90"
+                  )}
                 >
-                  {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
-                  Submit
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Submitting
+                    </>
+                  ) : isAccepted ? (
+                    <>
+                      <Send className="w-4 h-4 mr-2" />
+                      Accepted
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4 mr-2" />
+                      Submit
+                    </>
+                  )}
                 </Button>
               </div>
             )}

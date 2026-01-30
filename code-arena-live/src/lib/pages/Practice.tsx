@@ -193,22 +193,8 @@ function LiveBattleInterface({ problem, isOpen, onClose, onSolved }: LiveBattleI
     if (isOpen) fetchCompilerInfo();
   }, [isOpen]);
 
-  // Timer countdown
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const interval = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 0) {
-          clearInterval(interval);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isOpen]);
+  // Timer countdown - Removed auto-start for practice mode
+  // Timer is now just for display, doesn't auto-countdown
 
   if (!isOpen) return null;
 
@@ -226,43 +212,107 @@ function LiveBattleInterface({ problem, isOpen, onClose, onSolved }: LiveBattleI
   const handleRun = async () => {
     setIsRunning(true);
     setConsoleOutput("Running test cases...\n");
+    setTestResults([]);
 
-    setTimeout(() => {
-      const sampleOutput = `\n✓ Sample test case passed
-      Input: ${problem.examples[0].input}
-      Output: ${problem.examples[0].output}
-      Execution time: 2ms
-      Memory used: 42.5MB`;
-      setConsoleOutput(sampleOutput);
+    try {
+      // Use problem.id as problemId for the API call
+      const res = await api.post('/api/practice/run', {
+        problemId: problem.id,
+        code,
+        language: selectedLanguage
+      });
+      const data = await res.json();
+
+      if (data.success && data.result) {
+        const { verdict, stdout, stderr, compileOutput, testResults: tcResults, testCasesPassed, testCasesTotal } = data.result;
+
+        let output = '';
+
+        if (compileOutput) {
+          output += `Compile Output:\n${compileOutput}\n\n`;
+        }
+
+        if (stderr) {
+          output += `Errors:\n${stderr}\n\n`;
+        }
+
+        if (stdout) {
+          output += `Output:\n${stdout}\n\n`;
+        }
+
+        output += `Verdict: ${verdict}\n`;
+        output += `Test Cases: ${testCasesPassed}/${testCasesTotal} passed\n`;
+
+        setConsoleOutput(output);
+        setTestResults(tcResults || []);
+      } else {
+        setConsoleOutput("Error: " + (data.error || "Failed to run code"));
+      }
+    } catch (error) {
+      console.error("Run error:", error);
+      setConsoleOutput("Network error: Failed to execute code");
+    } finally {
       setIsRunning(false);
-    }, 1000);
+    }
   };
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
     setConsoleOutput("Submitting solution...\n");
+    setTestResults([]);
 
-    setTimeout(() => {
-      setConsoleOutput(`\n✓ All test cases passed!
-      ✓ Accepted
-      Submission Time: 2ms
-      Memory: 42.5MB
-      Runtime Beats: 95.6% of users`);
-      setTestResults([
-        { name: "Test Case 1", passed: true, time: "2ms" },
-        { name: "Test Case 2", passed: true, time: "1ms" },
-        { name: "Test Case 3", passed: true, time: "2ms" },
-        { name: "Test Case 4", passed: true, time: "1ms" },
-      ]);
-      setSubmitted(true);
+    try {
+      const res = await api.post('/api/practice/submit', {
+        problemId: problem.id,
+        code,
+        language: selectedLanguage
+      });
+      const data = await res.json();
+
+      if (data.success && data.result) {
+        const { verdict, stdout, stderr, compileOutput, testResults: tcResults, testCasesPassed, testCasesTotal, executionTime, memoryUsage } = data.result;
+
+        let output = '';
+
+        if (compileOutput) {
+          output += `Compile Output:\n${compileOutput}\n\n`;
+        }
+
+        if (stderr) {
+          output += `Errors:\n${stderr}\n\n`;
+        }
+
+        if (stdout) {
+          output += `Output:\n${stdout}\n\n`;
+        }
+
+        if (verdict === 'ACCEPTED') {
+          output += `✓ All test cases passed!\n`;
+          output += `✓ Accepted\n`;
+          setSubmitted(true);
+          onSolved?.();
+        } else {
+          output += `✗ Verdict: ${verdict}\n`;
+          setSubmitted(false);
+        }
+
+        output += `Test Cases: ${testCasesPassed}/${testCasesTotal} passed\n`;
+        output += `Execution Time: ${executionTime || 0}ms\n`;
+        output += `Memory: ${memoryUsage || 0}KB\n`;
+
+        setConsoleOutput(output);
+        setTestResults(tcResults || []);
+      } else {
+        setConsoleOutput("Error: " + (data.error || "Failed to submit code"));
+        setSubmitted(false);
+      }
+    } catch (error) {
+      console.error("Submit error:", error);
+      setConsoleOutput("Network error: Failed to submit code");
+      setSubmitted(false);
+    } finally {
       setIsSubmitting(false);
-
-      // Save to DB
-      api.post('/api/practice/submit', { problemId: problem.id, passed: true })
-        .catch(e => console.error("Failed to save progress", e));
-
-      onSolved?.();
-    }, 1500);
+    }
   };
 
   return (
