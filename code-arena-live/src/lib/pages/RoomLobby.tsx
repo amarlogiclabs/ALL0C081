@@ -43,6 +43,7 @@ export default function RoomLobby() {
   const [error, setError] = useState('');
   const [isStarting, setIsStarting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [leftParticipants, setLeftParticipants] = useState<Participant[]>([]);
 
   // Get userId from AuthContext first, then localStorage as backup
   const userId = user ? user.id : (localStorage.getItem('userId') || '0');
@@ -80,10 +81,48 @@ export default function RoomLobby() {
         }
 
         const data = await response.json();
-        setRoomState(data.room);
+
+        setRoomState((prev) => {
+          // 1. Detect users who left
+          if (prev) {
+            const currentIds = new Set(data.room.participants.map((p: Participant) => p.id));
+            const newlyLeft = prev.participants.filter((p) => !currentIds.has(p.id));
+
+            if (newlyLeft.length > 0) {
+              setLeftParticipants((prevLeft) => {
+                // Avoid duplicates
+                const existingIds = new Set(prevLeft.map((p) => p.id));
+                const uniqueNewLeft = newlyLeft.filter((p) => !existingIds.has(p.id));
+
+                // Set timeout to remove them after 5 seconds
+                uniqueNewLeft.forEach((p) => {
+                  setTimeout(() => {
+                    setLeftParticipants((current) =>
+                      current.filter((lp) => lp.id !== p.id)
+                    );
+                  }, 5000);
+                });
+
+                return [...prevLeft, ...uniqueNewLeft];
+              });
+            }
+          }
+
+          // 2. Prevent unnecessary re-renders (fixes "reloading" feeling)
+          if (prev && JSON.stringify(prev) === JSON.stringify(data.room)) {
+            return prev;
+          }
+
+          return data.room;
+        });
+
         setError('');
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load room');
+        // Only set error if it's different to prevent flicker
+        setError((prevErr) => {
+          const newErr = err instanceof Error ? err.message : 'Failed to load room';
+          return prevErr === newErr ? prevErr : newErr;
+        });
       } finally {
         setIsLoading(false);
       }
@@ -268,6 +307,7 @@ export default function RoomLobby() {
             {roomState.match_type === '1v1' ? (
               // 1v1 display
               <div className="space-y-3">
+                {/* Active Participants */}
                 {roomState.participants.map((p) => (
                   <div
                     key={p.id}
@@ -285,6 +325,24 @@ export default function RoomLobby() {
                     </div>
                     <Badge variant={p.status === 'ready' ? 'default' : 'secondary'}>
                       {p.status}
+                    </Badge>
+                  </div>
+                ))}
+
+                {/* Left Participants */}
+                {leftParticipants.map((p) => (
+                  <div
+                    key={`left-${p.id}`}
+                    className="flex items-center justify-between p-4 bg-red-900/10 rounded-lg border border-red-900/30 opacity-75"
+                  >
+                    <div className="flex items-center gap-3">
+                      <LogOut className="w-5 h-5 text-red-400" />
+                      <span className="font-semibold text-slate-400">
+                        {p.user_id === userId ? 'You' : `Player ${p.user_id}`}
+                      </span>
+                    </div>
+                    <Badge variant="destructive" className="bg-red-900/50 text-red-200 hover:bg-red-900/50">
+                      Left Room
                     </Badge>
                   </div>
                 ))}
@@ -321,6 +379,26 @@ export default function RoomLobby() {
                             </div>
                             <Badge variant="secondary" className="text-xs">
                               {p.status}
+                            </Badge>
+                          </div>
+                        ))}
+
+                      {/* Left Participants for this team */}
+                      {leftParticipants
+                        .filter((p) => p.team_number === team)
+                        .map((p) => (
+                          <div
+                            key={`left-${p.id}`}
+                            className="flex items-center justify-between p-3 bg-red-900/10 rounded-lg border border-red-900/30 opacity-75"
+                          >
+                            <div className="flex items-center gap-2">
+                              <LogOut className="w-4 h-4 text-red-400" />
+                              <span className="text-sm text-slate-400">
+                                {p.user_id === userId ? 'You' : `Player ${p.user_id}`}
+                              </span>
+                            </div>
+                            <Badge variant="destructive" className="text-xs bg-red-900/20 text-red-200">
+                              Left
                             </Badge>
                           </div>
                         ))}
