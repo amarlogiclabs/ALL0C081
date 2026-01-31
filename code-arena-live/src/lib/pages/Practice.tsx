@@ -321,7 +321,7 @@ function LiveBattleInterface({ problem, isOpen, onClose, onSolved }: LiveBattleI
       <div className="bg-gray-950 border-b border-gray-800 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Radio className="w-5 h-5 text-blue-500 animate-pulse" />
-          <h2 className="text-lg font-bold text-white">Live Battle</h2>
+          <h2 className="text-lg font-bold text-white">Practice Session</h2>
           <span className="text-gray-500 text-sm">Problem: {problem.title}</span>
         </div>
         <div className="flex items-center gap-4">
@@ -381,8 +381,7 @@ function LiveBattleInterface({ problem, isOpen, onClose, onSolved }: LiveBattleI
           </div>
         </div>
 
-        {/* Middle Column - Code Editor */}
-        <div className="flex-1 flex flex-col border-r border-gray-800 bg-gray-900">
+        <div className="flex-1 flex flex-col bg-gray-900">
           {/* Language Selector with Compiler Info */}
           <div className="border-b border-gray-800 p-3 flex items-center gap-3 bg-gray-800/30">
             <Settings className="w-4 h-4 text-gray-400" />
@@ -472,56 +471,6 @@ function LiveBattleInterface({ problem, isOpen, onClose, onSolved }: LiveBattleI
                 </>
               )}
             </Button>
-          </div>
-        </div>
-
-        {/* Right Column - Battle Info & Opponent */}
-        <div className="w-80 border-l border-gray-800 bg-gray-950 flex flex-col overflow-hidden">
-          {/* User Info */}
-          <div className="p-4 border-b border-gray-800 space-y-3">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">You</div>
-                <div className="text-lg font-bold text-white">siva</div>
-                <div className="text-sm text-amber-400">Bronze 1900</div>
-              </div>
-              <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-lg">S</div>
-            </div>
-            <div className="flex items-center gap-2 text-xs">
-              <Radio className="w-3 h-3 text-gray-400" />
-              <span className="text-gray-400">Idle</span>
-            </div>
-          </div>
-
-          {/* Divider */}
-          <div className="px-4 py-2">
-            <div className="h-px bg-gradient-to-r from-transparent via-gray-700 to-transparent" />
-          </div>
-
-          {/* Opponent Info */}
-          <div className="p-4 border-b border-gray-800 space-y-3">
-            <div className="text-xs text-gray-500 uppercase tracking-wide mb-2">Opponent</div>
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="text-lg font-bold text-white">ByteNinja</div>
-                <div className="text-sm text-yellow-500">Gold 1523</div>
-              </div>
-              <div className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-white font-bold text-lg">B</div>
-            </div>
-            <div className="flex items-center gap-2 text-xs">
-              <Radio className="w-3 h-3 text-red-500 animate-pulse" />
-              <span className="text-red-400">Disconnected</span>
-            </div>
-          </div>
-
-          {/* Battle Log */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            <div className="text-xs font-semibold text-gray-300 uppercase tracking-wide">Battle Log</div>
-            <div className="text-xs text-gray-500 text-center py-8">
-              <div className="inline-block px-3 py-2 bg-gray-800 rounded">
-                Connecting to battle...
-              </div>
-            </div>
           </div>
         </div>
       </div>

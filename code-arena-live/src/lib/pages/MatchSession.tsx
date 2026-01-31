@@ -79,7 +79,13 @@ export default function MatchSession() {
 
         if (response.ok) {
           const data = await response.json();
-          setRoomState(data.room);
+          const newRoomState = data.room;
+          setRoomState(newRoomState);
+
+          // Navigate to battle results when match is completed
+          if (newRoomState.status === 'completed') {
+            navigate(`/battle/results/${roomId}`);
+          }
         }
       } catch (err) {
         console.error('Error fetching room state:', err);
@@ -91,7 +97,7 @@ export default function MatchSession() {
       const interval = setInterval(fetchRoomState, 2000);
       return () => clearInterval(interval);
     }
-  }, [roomId, userToken]);
+  }, [roomId, userToken, navigate]);
 
   // Fetch leaderboard
   useEffect(() => {
@@ -124,16 +130,62 @@ export default function MatchSession() {
     try {
       setIsRunning(true);
       setConsoleOutput('Running tests...\n');
+      setError('');
 
-      // Simulate execution
-      setTimeout(() => {
-        setConsoleOutput(
-          `✓ Test case 1 passed (2ms)\n✓ Test case 2 passed (1ms)\n✓ Test case 3 passed (3ms)\n\nAll tests passed!`
-        );
-        setIsRunning(false);
-      }, 1500);
+      const response = await api.post(`/api/match/room/${roomId}/run`, {
+        code,
+        language: selectedLanguage
+      }, {
+        headers: {
+          'Authorization': `Bearer ${userToken}`
+        }
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to run code');
+      }
+
+      const data = await response.json();
+      const result = data.result;
+
+      // Format output based on test results
+      let output = '';
+
+      if (result.verdict === 'COMPILATION_ERROR') {
+        output = `❌ Compilation Error:\n${result.error}\n`;
+      } else if (result.verdict === 'RUNTIME_ERROR') {
+        output = `❌ Runtime Error:\n${result.error}\n`;
+      } else if (result.testResults && result.testResults.length > 0) {
+        output = 'Test Results:\n\n';
+        result.testResults.forEach((tr: any) => {
+          if (tr.passed) {
+            output += `✓ Test case ${tr.testCase} passed (${tr.time || 0}ms)\n`;
+          } else {
+            output += `✗ Test case ${tr.testCase} failed\n`;
+            if (tr.error) {
+              output += `  Error: ${tr.error}\n`;
+            } else {
+              output += `  Expected: ${tr.expected}\n  Got: ${tr.actual}\n`;
+            }
+          }
+        });
+
+        output += `\n${result.testCasesPassed}/${result.testCasesTotal} tests passed`;
+
+        if (result.testCasesPassed === result.testCasesTotal) {
+          output += '\n\n✓ All tests passed!';
+        }
+      } else {
+        output = `${result.verdict}\n${result.testCasesPassed}/${result.testCasesTotal} tests passed`;
+      }
+
+      setConsoleOutput(output);
     } catch (err) {
-      setConsoleOutput(`❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+      setConsoleOutput(`❌ Error: ${errorMsg}`);
+      setError(errorMsg);
+    } finally {
       setIsRunning(false);
     }
   };
@@ -143,15 +195,14 @@ export default function MatchSession() {
     try {
       setIsSubmitting(true);
       setError('');
+      setConsoleOutput('Submitting solution...\n');
 
       const response = await api.post(`/api/match/room/${roomId}/submit`, {
         code,
-        language: selectedLanguage,
-        executionResult: {
-          testsPassed: 3,
-          testsTotal: 3,
-          executionTime: 5,
-          status: 'accepted'
+        language: selectedLanguage
+      }, {
+        headers: {
+          'Authorization': `Bearer ${userToken}`
         }
       });
 
@@ -160,10 +211,42 @@ export default function MatchSession() {
         throw new Error(data.error || 'Failed to submit');
       }
 
+      const data = await response.json();
+      const result = data.result;
+
+      // Format submission result
+      let output = '';
+
+      if (result.verdict === 'ACCEPTED') {
+        output = '✓ Solution accepted! All test cases passed.\n\n';
+        output += `Tests: ${result.testCasesPassed}/${result.testCasesTotal}\n`;
+        output += `Execution time: ${result.executionTime?.toFixed(2) || 0}ms\n\n`;
+        output += 'Your solution has been submitted. Waiting for opponent...';
+      } else if (result.verdict === 'COMPILATION_ERROR') {
+        output = `❌ Compilation Error:\n${result.error}`;
+      } else if (result.verdict === 'RUNTIME_ERROR') {
+        output = `❌ Runtime Error:\n${result.error}`;
+      } else if (result.verdict === 'WRONG_ANSWER') {
+        output = `❌ Wrong Answer\n\n`;
+        output += `Tests passed: ${result.testCasesPassed}/${result.testCasesTotal}\n`;
+        if (result.testResults && result.testResults.length > 0) {
+          const failed = result.testResults.find((tr: any) => !tr.passed);
+          if (failed) {
+            output += `\nFirst failed test:\n`;
+            output += `  Expected: ${failed.expected}\n`;
+            output += `  Got: ${failed.actual}\n`;
+          }
+        }
+      } else {
+        output = `${result.verdict}\n${result.testCasesPassed}/${result.testCasesTotal} tests passed`;
+      }
+
+      setConsoleOutput(output);
       setSubmitted(true);
-      setConsoleOutput('✓ Solution accepted! All test cases passed.\n\nYour solution has been submitted.');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to submit');
+      const errorMsg = err instanceof Error ? err.message : 'Failed to submit';
+      setError(errorMsg);
+      setConsoleOutput(`❌ Error: ${errorMsg}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -343,15 +426,20 @@ export default function MatchSession() {
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-slate-400">#{idx + 1}</span>
                         <span>
-                          {p.user_id === userId ? 'You' : `Player ${p.user_id}`}
+                          {p.user_id === userId ? 'You' : (p as any).username || `Player ${p.user_id}`}
                         </span>
                       </div>
-                      <Badge
-                        variant={p.status === 'submitted' ? 'default' : 'secondary'}
-                        className="text-xs"
-                      >
-                        {p.status === 'submitted' ? '✓ Solved' : p.status}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        {(p as any).elo && (
+                          <span className="text-xs text-amber-400 font-mono mr-2">{(p as any).elo}</span>
+                        )}
+                        <Badge
+                          variant={p.status === 'submitted' ? 'default' : 'secondary'}
+                          className="text-xs"
+                        >
+                          {p.status === 'submitted' ? '✓ Solved' : p.status}
+                        </Badge>
+                      </div>
                     </div>
                   ))}
                 </div>

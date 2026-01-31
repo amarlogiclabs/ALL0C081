@@ -67,15 +67,17 @@ export const processMatchResult = async (matchId, winnerId, loserId) => {
         const { winnerNewElo, loserNewElo, winnerChange, loserChange } = calculateNewRatings(winnerElo, loserElo);
 
         // Update Winner
+        const winnerTier = getTier(winnerNewElo);
         await query(
-            `UPDATE user_profiles SET elo = ?, wins = wins + 1, total_matches = total_matches + 1 WHERE id = ?`,
-            [winnerNewElo, winnerId]
+            `UPDATE user_profiles SET elo = ?, tier = ?, wins = wins + 1, total_matches = total_matches + 1 WHERE id = ?`,
+            [winnerNewElo, winnerTier, winnerId]
         );
 
         // Update Loser
+        const loserTier = getTier(loserNewElo);
         await query(
-            `UPDATE user_profiles SET elo = ?, total_matches = total_matches + 1 WHERE id = ?`,
-            [loserNewElo, loserId]
+            `UPDATE user_profiles SET elo = ?, tier = ?, total_matches = total_matches + 1 WHERE id = ?`,
+            [loserNewElo, loserTier, loserId]
         );
 
         // Record History logic
@@ -94,8 +96,8 @@ export const processMatchResult = async (matchId, winnerId, loserId) => {
         await query('COMMIT');
 
         return {
-            [winnerId]: { old: winnerElo, new: winnerNewElo, change: winnerChange },
-            [loserId]: { old: loserElo, new: loserNewElo, change: loserChange }
+            [winnerId]: { old: winnerElo, new: winnerNewElo, change: winnerChange, tier: winnerTier },
+            [loserId]: { old: loserElo, new: loserNewElo, change: loserChange, tier: loserTier }
         };
 
     } catch (error) {
@@ -103,6 +105,20 @@ export const processMatchResult = async (matchId, winnerId, loserId) => {
         console.error('ELO Update Failed:', error);
         throw error;
     }
+};
+
+/**
+ * Get tier name from ELO
+ */
+export const getTier = (elo) => {
+    if (elo >= 2400) return 'Universal';
+    if (elo >= 2000) return 'Celestia';
+    if (elo >= 1800) return 'Galactic';
+    if (elo >= 1600) return 'Cosmic';
+    if (elo >= 1400) return 'Luminary';
+    if (elo >= 1200) return 'Stellar';
+    if (elo >= 1000) return 'Nova';
+    return 'Nebula';
 };
 
 export default { calculateNewRatings, processMatchResult };

@@ -6,11 +6,11 @@ import path from "path";
 export default defineConfig({
   server: {
     host: "0.0.0.0",
-    port: 5174,
+    port: 5173,
     open: false,
     hmr: {
       // Let Vite auto-detect the correct host
-      port: 5174,
+      port: 5173,
     },
     watch: {
       // Prevent watching unnecessary files that trigger reloads

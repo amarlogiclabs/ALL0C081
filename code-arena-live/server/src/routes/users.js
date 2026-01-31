@@ -99,17 +99,26 @@ router.get('/analytics', authMiddleware, async (req, res) => {
 
     // 4. Next Tier Logic
     const tiers = [
-      { name: 'Bronze', limit: 1200 },
-      { name: 'Silver', limit: 1400 },
-      { name: 'Gold', limit: 1600 },
-      { name: 'Platinum', limit: 1800 },
-      { name: 'Diamond', limit: 2000 },
-      { name: 'Stellar', limit: 9999 }
+      { name: 'Nebula', limit: 1000 },
+      { name: 'Nova', limit: 1200 },
+      { name: 'Stellar', limit: 1400 },
+      { name: 'Luminary', limit: 1600 },
+      { name: 'Cosmic', limit: 1800 },
+      { name: 'Galactic', limit: 2000 },
+      { name: 'Celestia', limit: 2400 },
+      { name: 'Universal', limit: 9999 }
     ];
-    const currentTierIdx = tiers.findIndex(t => t.name === user.tier) || 0;
+    // Find current tier based on ELO
+    let currentTierIdx = tiers.findIndex(t => t.limit > user.elo);
+    if (currentTierIdx === -1) currentTierIdx = tiers.length - 1;
+
     const nextTier = tiers[currentTierIdx + 1] || null;
-    const pointsToNext = nextTier ? Math.max(0, nextTier.limit - user.elo) : 0;
-    const progress = nextTier ? ((user.elo - tiers[currentTierIdx].limit) / (nextTier.limit - tiers[currentTierIdx].limit)) * 100 : 100;
+    const targetElo = tiers[currentTierIdx] ? tiers[currentTierIdx].limit : 9999;
+    const prevLimit = currentTierIdx > 0 ? tiers[currentTierIdx - 1].limit : 0;
+
+    const pointsToNext = targetElo - user.elo;
+    const progress = ((user.elo - prevLimit) / (targetElo - prevLimit)) * 100;
+
 
     res.json({
       success: true,
@@ -127,7 +136,12 @@ router.get('/analytics', authMiddleware, async (req, res) => {
           nextTier: nextTier?.name || 'Max',
           pointsToNext,
           progress: Math.min(100, Math.max(0, progress))
-        }
+        },
+        achievements: [
+          { title: 'First Win', description: 'Won your first live battle', date: '2025-01-15' },
+          { title: 'Problem Solver', description: 'Solved 10 problems', date: '2025-01-20' },
+          { title: 'Speed Demon', description: 'Solved a problem in under 5 minutes', date: '2025-01-25' }
+        ]
       }
     });
   } catch (err) {

@@ -379,7 +379,12 @@ export default function Profile() {
                           <Swords className="w-5 h-5" />
                         </div>
                         <div>
-                          <p className="font-medium">{battle.problem_title || 'Battle'}</p>
+                          <p className="font-medium flex items-center gap-2">
+                            {battle.problem_title || 'Battle'}
+                            <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-gray-700">
+                              {battle.match_type || 'Ranked'}
+                            </span>
+                          </p>
                           <p className="text-sm text-muted-foreground capitalize">
                             {battle.result}
                           </p>
@@ -477,8 +482,25 @@ export default function Profile() {
                   <Award className="w-5 h-5 text-tier-luminary" />
                   Achievements
                 </h3>
-                <div className="text-sm text-muted-foreground">
-                  Achievements coming soon...
+                <div className="space-y-3">
+                  {analytics?.achievements?.map((achievement: any, i: number) => (
+                    <div
+                      key={i}
+                      className="p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors text-sm"
+                    >
+                      <div className="flex justify-between mb-1">
+                        <p className="font-medium">{achievement.title}</p>
+                        <Calendar className="w-3 h-3 text-muted-foreground" />
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-1">{achievement.description}</p>
+                      <p className="text-[10px] text-muted-foreground">{achievement.date}</p>
+                    </div>
+                  ))}
+                  {(!analytics?.achievements || analytics.achievements.length === 0) && (
+                    <div className="text-sm text-muted-foreground">
+                      No achievements yet. Keep competing!
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

@@ -72,7 +72,7 @@ echo "${BLUE}[2/5]${NC} Starting Java User Microservice..."
 echo "════════════════════════════════════════════════════════════"
 echo ""
 
-cd "codeverse-microservices/user-service" || exit 1
+cd "code-arena-microservices/user-service" || exit 1
 echo "Starting Spring Boot application on port 8090..."
 mvn spring-boot:run &
 JAVA_PID=$!
@@ -84,7 +84,7 @@ echo "${BLUE}[3/5]${NC} Starting Express Backend Server..."
 echo "════════════════════════════════════════════════════════════"
 echo ""
 
-cd "../../codeverse-live/server" || exit 1
+cd "../../code-arena-live/server" || exit 1
 echo "Starting Express backend on port 5000..."
 echo "Database: MySQL ($MYSQL_HOST:$MYSQL_PORT)"
 npm run dev &

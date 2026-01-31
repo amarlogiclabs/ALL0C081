@@ -18,7 +18,12 @@ class MockDatabase {
       match_rooms: [],
       room_participants: [],
       match_scores: [],
+      // Special storage for joined query results that mockDb can't execute natively
+      mock_match_history: [],
+      mock_achievements: [],
     };
+
+    this.populateMockData();
   }
 
   // Query method that simulates SQL queries
@@ -53,9 +58,16 @@ class MockDatabase {
 
     // SHOW TABLES
     if (normalizedSql.includes('SHOW TABLES')) {
-      return Object.keys(this.tables).map(name => ({ 
-        Tables_in_codeverse: name 
+      return Object.keys(this.tables).map(name => ({
+        Tables_in_codeverse: name
       }));
+    }
+
+    // Intercept Complex Analytics Query (JOINs not supported)
+    if (normalizedSql.includes('FROM MATCH_RESULTS MR') && normalizedSql.includes('JOIN MATCHES M')) {
+      const userId = params[1]; // 2nd param is user_id in the analytics query
+      // For demo purposes, return the mock history for ANY user, but patch the user_id
+      return this.tables.mock_match_history.map(h => ({ ...h, user_id: userId }));
     }
 
     throw new Error(`Unsupported query type: ${sql}`);
@@ -80,7 +92,40 @@ class MockDatabase {
       results = this.filterByWhere(results, sql, params);
     }
 
-    return results;
+    return this.applyModifiers(results, sql);
+  }
+
+  applyModifiers(results, sql) {
+    let modified = [...results];
+    const upper = sql.toUpperCase();
+
+    // ORDER BY
+    const orderMatch = sql.match(/ORDER BY\s+([\w.]+)\s+(ASC|DESC)?/i);
+    if (orderMatch) {
+      const column = orderMatch[1];
+      const direction = (orderMatch[2] || 'ASC').toUpperCase();
+
+      modified.sort((a, b) => {
+        const valA = a[column];
+        const valB = b[column];
+
+        if (typeof valA === 'number' && typeof valB === 'number') {
+          return direction === 'ASC' ? valA - valB : valB - valA;
+        }
+        return direction === 'ASC'
+          ? String(valA).localeCompare(String(valB))
+          : String(valB).localeCompare(String(valA));
+      });
+    }
+
+    // LIMIT
+    const limitMatch = sql.match(/LIMIT\s+(\d+)/i);
+    if (limitMatch) {
+      const limit = parseInt(limitMatch[1]);
+      modified = modified.slice(0, limit);
+    }
+
+    return modified;
   }
 
   filterByWhere(results, sql, params) {
@@ -92,7 +137,7 @@ class MockDatabase {
 
     // Handle simple conditions with ? placeholders
     let conditionIndex = 0;
-    
+
     // Split by AND
     const conditions = whereClause.split(/\s+AND\s+/i).map(c => c.trim());
 
@@ -284,25 +329,118 @@ class MockDatabase {
 
     return tableSchemas[tableName] || [];
   }
+
+  populateMockData() {
+    // 1. Clear existing
+    this.tables.user_profiles = [];
+    this.tables.mock_match_history = [];
+
+    // 2. Demo User
+    const demoUser = {
+      id: 'user_demo_001',
+      email: 'demo@codearea.com',
+      username: 'demouser',
+      password_hash: '$2a$10$MgeilCIeYNMa/XXcQ7DKLu1hOw8mvVSCIbtD4M5I8rY9Uq2c37gjC',
+      elo: 1650,
+      tier: 'Cosmic',
+      total_matches: 42,
+      wins: 28,
+      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=demouser',
+      created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ago
+      updated_at: new Date().toISOString(),
+    };
+    this.tables.user_profiles.push(demoUser);
+
+    // 3. Generate Mock Users for Leaderboard (covering all tiers)
+    const tiers = [
+      { name: 'Nebula', min: 0, max: 999 },
+      { name: 'Nova', min: 1000, max: 1199 },
+      { name: 'Stellar', min: 1200, max: 1399 },
+      { name: 'Luminary', min: 1400, max: 1599 },
+      { name: 'Cosmic', min: 1600, max: 1799 },
+      { name: 'Galactic', min: 1800, max: 1999 },
+      { name: 'Celestia', min: 2000, max: 2399 },
+      { name: 'Universal', min: 2400, max: 3000 }
+    ];
+
+    const generateUser = (id, username, tierDef) => {
+      const elo = Math.floor(Math.random() * (tierDef.max - tierDef.min + 1)) + tierDef.min;
+      const total = Math.floor(Math.random() * 100) + 10;
+      const wins = Math.floor(total * (Math.random() * 0.4 + 0.3)); // 30-70% win rate
+      return {
+        id: `user_${id}`,
+        email: `${username}@example.com`,
+        username,
+        password_hash: 'hash',
+        elo,
+        tier: tierDef.name,
+        total_matches: total,
+        wins,
+        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+    };
+
+    // Generate ~3-5 users per tier
+    let uId = 1;
+    tiers.forEach(tier => {
+      for (let i = 0; i < 4; i++) {
+        const username = `${tier.name}Coder${i + 1}`;
+        this.tables.user_profiles.push(generateUser(uId++, username, tier));
+      }
+    });
+
+    // Add some "friends" or recognizable names
+    this.tables.user_profiles.push(
+      generateUser(uId++, 'CodeNinja', tiers[7]), // Universal
+      generateUser(uId++, 'BugHunter', tiers[6]), // Celestia
+      generateUser(uId++, 'AlgoMaster', tiers[5]), // Galactic
+      generateUser(uId++, 'Pythonista', tiers[4]), // Cosmic
+      generateUser(uId++, 'JavaJedi', tiers[2])   // Stellar
+    );
+
+    // 4. Generate Match History for Demo User
+    // Fields: id, match_type, created_at, new_elo, elo_change, problem_title, result
+    // Query uses: WHERE mr.user_id = ?
+    const problemTitles = ['Two Sum', 'Median of Two Arrays', 'Valid Parentheses', 'Merge Sort', 'LRU Cache'];
+
+    let currentElo = demoUser.elo;
+    for (let i = 0; i < 15; i++) {
+      const isWin = Math.random() > 0.4;
+      const eloChange = Math.floor(Math.random() * 20) + 10; // 10-30 points
+      const change = isWin ? eloChange : -eloChange;
+      const prevElo = currentElo - change; // Reverse trace for history
+
+      this.tables.mock_match_history.push({
+        user_id: demoUser.id,
+        id: `match_hist_${i}`,
+        match_type: ['1v1', 'random', 'aptitude', '2v2', 'practice'][Math.floor(Math.random() * 5)],
+        created_at: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString(), // Days ago
+        new_elo: currentElo,
+        elo_change: change,
+        problem_title: problemTitles[Math.floor(Math.random() * problemTitles.length)],
+        result: isWin ? 'WIN' : 'LOSS' // Simple win/loss for now
+      });
+
+      currentElo = prevElo; // Go back in time
+    }
+
+    // Reverse again so index 0 is most recent? 
+    // The query sorts DESC by created_at, so we generated most recent first (i=0 is today).
+    // The query returns `new_elo` which should be the elo AFTER the match.
+    // So if today (i=0) I am 1650, and I won (+20), then previous was 1630.
+    // 5. Generate Mock Achievements
+    this.tables.mock_achievements.push(
+      { id: 1, title: 'First Win', description: 'Won your first live battle', icon: 'Trophy', date: '2025-01-15' },
+      { id: 2, title: 'Problem Solver', description: 'Solved 10 problems in practice mode', icon: 'Target', date: '2025-01-20' },
+      { id: 3, title: 'Speed Demon', description: 'Solved a problem in under 5 minutes', icon: 'Flame', date: '2025-01-25' },
+      { id: 4, title: 'Consistent', description: 'Daily login for 7 days', icon: 'Calendar', date: '2025-01-30' }
+    );
+  }
 }
 
 const mockDb = new MockDatabase();
-
-// Add some sample test users (passwords are hashed with bcryptjs)
-// Note: These are sample data for development only
-mockDb.tables.user_profiles.push({
-  id: 'user_demo_001',
-  email: 'demo@codearea.com',
-  username: 'demouser',
-  password_hash: '$2a$10$MgeilCIeYNMa/XXcQ7DKLu1hOw8mvVSCIbtD4M5I8rY9Uq2c37gjC', // Password: CodeArena123!
-  elo: 1200,
-  tier: 'Silver',
-  total_matches: 5,
-  wins: 3,
-  avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=demouser',
-  created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString(),
-});
 
 // Add some sample problems
 mockDb.tables.problems.push({

@@ -25,6 +25,53 @@ const generateRoomCode = async () => {
   return code;
 };
 
+// Find an available room for random matchmaking
+export const findAvailableRoom = async (userId, matchType = '1v1') => {
+  try {
+    // Find a room that:
+    // 1. Is 'waiting'
+    // 2. Is of the correct match type
+    // 3. Has space (count < max)
+    // 4. User is NOT already in (optional, but good practice)
+
+    // We select rooms with participants count < max
+    // Sort by created_at to fill older rooms first
+
+    const maxParticipants = matchType === '1v1' ? 2 : 4;
+
+    // Simple query to find candidate rooms
+    const rooms = await query(
+      `SELECT m.id, m.room_code, m.match_type, COUNT(rp.user_id) as participant_count 
+       FROM match_rooms m
+       JOIN room_participants rp ON m.id = rp.room_id
+       WHERE m.status = 'waiting' AND m.match_type = ?
+       GROUP BY m.id
+       HAVING participant_count < ?
+       ORDER BY m.created_at ASC
+       LIMIT 1`,
+      [matchType, maxParticipants]
+    );
+
+    if (rooms.length > 0) {
+      // Check if user is already in this room (edge case)
+      const room = rooms[0];
+      const userInRoom = await query(
+        `SELECT 1 FROM room_participants WHERE room_id = ? AND user_id = ?`,
+        [room.id, userId]
+      );
+
+      if (userInRoom.length === 0) {
+        return room.room_code;
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error finding available room:', error);
+    throw error;
+  }
+};
+
 // Create a new match room
 export const createRoom = async (hostId, matchType = '1v1', problemId = null, options = {}) => {
   try {
@@ -41,10 +88,29 @@ export const createRoom = async (hostId, matchType = '1v1', problemId = null, op
     const level = options.level || 'medium';
     const timing = options.timing || 30;
 
+    // If no problem provided (e.g. Random Battle), assign one immediately
+    let finalProblemId = problemId;
+    if (!finalProblemId) {
+      // Try to find a problem of the requested level
+      let questions = await query(
+        'SELECT id FROM coding_questions WHERE difficulty = ? ORDER BY RAND() LIMIT 1',
+        [level.charAt(0).toUpperCase() + level.slice(1).toLowerCase()] // "Medium"
+      );
+
+      if (questions.length === 0) {
+        // Fallback to any problem
+        questions = await query('SELECT id FROM coding_questions ORDER BY RAND() LIMIT 1');
+      }
+
+      if (questions.length > 0) {
+        finalProblemId = questions[0].id;
+      }
+    }
+
     await query(
       `INSERT INTO match_rooms (id, room_code, host_id, match_type, max_participants, problem_id, expires_at, language, level, timing, status, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'waiting', ?)`,
-      [roomId, roomCode, hostId, matchType, maxParticipants, problemId, expiresAt, language, level, timing, createdAt]
+      [roomId, roomCode, hostId, matchType, maxParticipants, finalProblemId, expiresAt, language, level, timing, createdAt]
     );
 
     // Add host as first participant (auto-increment ID)
@@ -177,6 +243,25 @@ export const getRoomState = async (roomId) => {
 
     const room = rooms[0];
 
+    // Helper: Safely parse JSON or return valid array
+    const toArray = (val) => {
+      if (!val) return [];
+      if (Array.isArray(val)) return val;
+      if (typeof val === 'object') return [val]; // Should probably be key-value, but for array fields effectively wraps it
+      try {
+        const parsed = JSON.parse(val);
+        return Array.isArray(parsed) ? parsed : [parsed];
+      } catch (e) {
+        // If it's a comma-separated string, maybe split it? 
+        // Or just wrap the string as one item
+        return typeof val === 'string' && val.includes(',') ? val.split(',').map(s => s.trim()) : [val];
+      }
+    };
+
+    room.tags = toArray(room.tags);
+    room.examples = toArray(room.examples);
+    room.constraints = toArray(room.constraints);
+
     // Get participants
     const participants = await query(
       `SELECT 
@@ -184,6 +269,8 @@ export const getRoomState = async (roomId) => {
         rp.user_id,
         u.username,
         u.avatar,
+        u.elo,
+        u.tier,
         rp.team_number,
         rp.status,
         rp.joined_at,
@@ -192,10 +279,13 @@ export const getRoomState = async (roomId) => {
         ms.score,
         ms.test_cases_passed,
         ms.test_cases_total,
-        ms.execution_time_ms  -- Added for stats
+        ms.execution_time_ms,
+        mr.elo_change,
+        mr.new_elo as final_match_elo
        FROM room_participants rp
        LEFT JOIN match_scores ms ON rp.room_id = ms.room_id AND rp.user_id = ms.user_id
        LEFT JOIN user_profiles u ON rp.user_id = u.id
+       LEFT JOIN match_results mr ON rp.room_id = mr.match_id AND rp.user_id = mr.user_id
        WHERE rp.room_id = ?
        ORDER BY rp.joined_at`,
       [roomId]
@@ -513,5 +603,6 @@ export default {
   startMatch,
   submitCode,
   runCode,
-  getMatchLeaderboard
+  getMatchLeaderboard,
+  findAvailableRoom
 };

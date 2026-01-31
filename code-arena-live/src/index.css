@@ -87,7 +87,9 @@
     font-family: 'Inter', sans-serif;
   }
 
-  code, pre, .font-mono {
+  code,
+  pre,
+  .font-mono {
     font-family: 'JetBrains Mono', monospace;
   }
 }
@@ -143,7 +145,7 @@
 
   /* Animated background */
   .cosmic-bg {
-    background: 
+    background:
       radial-gradient(ellipse at 20% 30%, hsla(265, 89%, 66%, 0.15) 0%, transparent 50%),
       radial-gradient(ellipse at 80% 70%, hsla(200, 95%, 55%, 0.1) 0%, transparent 50%),
       radial-gradient(ellipse at 50% 50%, hsla(320, 90%, 65%, 0.05) 0%, transparent 70%),
@@ -187,21 +189,47 @@
     animation: scaleIn 0.3s ease-out forwards;
   }
 
-  .delay-100 { animation-delay: 100ms; }
-  .delay-200 { animation-delay: 200ms; }
-  .delay-300 { animation-delay: 300ms; }
-  .delay-400 { animation-delay: 400ms; }
-  .delay-500 { animation-delay: 500ms; }
+  .delay-100 {
+    animation-delay: 100ms;
+  }
+
+  .delay-200 {
+    animation-delay: 200ms;
+  }
+
+  .delay-300 {
+    animation-delay: 300ms;
+  }
+
+  .delay-400 {
+    animation-delay: 400ms;
+  }
+
+  .delay-500 {
+    animation-delay: 500ms;
+  }
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-20px); }
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-20px);
+  }
 }
 
 @keyframes glow {
-  0% { box-shadow: 0 0 20px hsla(265, 89%, 66%, 0.3); }
-  100% { box-shadow: 0 0 40px hsla(265, 89%, 66%, 0.6); }
+  0% {
+    box-shadow: 0 0 20px hsla(265, 89%, 66%, 0.3);
+  }
+
+  100% {
+    box-shadow: 0 0 40px hsla(265, 89%, 66%, 0.6);
+  }
 }
 
 @keyframes slideUp {
@@ -209,6 +237,7 @@
     opacity: 0;
     transform: translateY(30px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -216,8 +245,13 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes scaleIn {
@@ -225,6 +259,7 @@
     opacity: 0;
     transform: scale(0.95);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
@@ -232,8 +267,15 @@
 }
 
 @keyframes pulse-ring {
-  0% { transform: scale(0.8); opacity: 1; }
-  100% { transform: scale(2); opacity: 0; }
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
 }
 
 /* Scrollbar styling */

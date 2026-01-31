@@ -3,7 +3,7 @@ spring:
     name: user-service
   
   datasource:
-    url: jdbc:mysql://127.0.0.1:3306/codeverse?useSSL=false&serverTimezone=UTC
+    url: jdbc:mysql://127.0.0.1:3306/codeverse?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
     username: root
     password: root254
     driver-class-name: com.mysql.cj.jdbc.Driver

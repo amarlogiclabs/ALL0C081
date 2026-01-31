@@ -14,13 +14,63 @@ import {
   startMatch,
   submitCode,
   runCode,
-  getMatchLeaderboard
+  getMatchLeaderboard,
+  findAvailableRoom
 } from '../services/matchRoom.js';
 
 const router = express.Router();
 
 // All routes require authentication
 router.use(authMiddleware);
+
+/**
+ * POST /api/match/room/random
+ * Find or create a random match
+ */
+router.post('/room/random', async (req, res) => {
+  try {
+    const userId = req.userId;
+    // Default to 1v1 for random battles
+    const matchType = '1v1';
+
+    // 1. Try to find an available room
+    const roomCode = await findAvailableRoom(userId, matchType);
+
+    if (roomCode) {
+      // Join existing room
+      const result = await joinRoom(roomCode, userId);
+      if (result.success) {
+        return res.json({
+          success: true,
+          roomId: result.roomId,
+          roomCode,
+          action: 'joined',
+          message: 'Found a match!'
+        });
+      }
+      // If join failed (e.g. race condition), fall through to create
+    }
+
+    // 2. Create new room if none found
+    // We don't specify problemId, so it will be random
+    const result = await createRoom(userId, matchType, null, {
+      level: 'Medium', // Default difficulty
+      timing: 30
+    });
+
+    res.json({
+      success: true,
+      roomId: result.roomId,
+      roomCode: result.roomCode,
+      action: 'created',
+      message: 'Created new match room'
+    });
+
+  } catch (error) {
+    console.error('Error finding match:', error);
+    res.status(500).json({ error: 'Failed to find match' });
+  }
+});
 
 /**
  * POST /api/match/room/create

@@ -129,8 +129,15 @@ export default function Compete() {
 
   const createBattle = async () => {
     try {
-      const mockBattleId = "battle_" + Math.random().toString(36).substr(2, 9);
-      navigate(`/battle/${mockBattleId}`);
+      // Call backend to find random match
+      const response = await api.post("/api/match/room/random", {});
+      const data = await response.json();
+
+      if (data.success && data.roomId) {
+        navigate(`/battle/${data.roomId}`);
+      } else {
+        console.error("Failed to find match:", data.error);
+      }
     } catch (error) {
       console.error("Error creating battle:", error);
     }

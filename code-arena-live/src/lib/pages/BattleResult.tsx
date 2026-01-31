@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CodeEditor } from "@/components/CodeEditor";
 import { ArrowLeft, Clock, Trophy, Zap, AlertTriangle, Eye } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface ParticipantResult {
     user_id: string;
@@ -22,6 +23,7 @@ interface ParticipantResult {
     code_submitted?: string;
     submitted_at?: string;
     submission_count?: number;
+    elo_change?: number;
 }
 
 export default function BattleResult() {
@@ -40,13 +42,12 @@ export default function BattleResult() {
 
                 if (data.success && data.room) {
                     const parts = data.room.participants || [];
-                    // Sort by score/time - though backend might have done it, let's ensure
-                    // Logic: Higher passed cases first, then lower time
+                    // Sort by score/time
                     const sorted = [...parts].sort((a: ParticipantResult, b: ParticipantResult) => {
                         if (b.test_cases_passed !== a.test_cases_passed) {
-                            return b.test_cases_passed - a.test_cases_passed;
+                            return (b.test_cases_passed || 0) - (a.test_cases_passed || 0);
                         }
-                        return a.execution_time_ms - b.execution_time_ms;
+                        return (a.execution_time_ms || 999999) - (b.execution_time_ms || 999999);
                     });
 
                     setParticipants(sorted);
@@ -72,7 +73,11 @@ export default function BattleResult() {
 
     const selectedParticipant = participants.find(p => p.user_id === selectedUser);
     const myResult = participants.find(p => p.user_id === user?.id);
-    const isWinner = myResult?.user_id === participants[0]?.user_id && myResult?.test_cases_passed === myResult?.test_cases_total;
+
+    // Determine winner based on DB/ELO result if available, else fallback to local check
+    // If elo_change is positive, they likely won or drew well
+    const isWinner = myResult?.elo_change && myResult.elo_change > 0;
+    const eloDiff = myResult?.elo_change ? (myResult.elo_change > 0 ? `+${myResult.elo_change}` : myResult.elo_change) : null;
 
     return (
         <div className="min-h-screen bg-background text-foreground p-6">
@@ -93,15 +98,16 @@ export default function BattleResult() {
                             <>
                                 <Trophy className="w-16 h-16 text-yellow-500 animate-bounce" />
                                 <h2 className="text-4xl font-bold text-yellow-500">Victory!</h2>
-                                <p className="text-xl text-muted-foreground">+25 ELO Gained</p>
+                                {eloDiff && <p className="text-xl text-green-400">{eloDiff} ELO Gained</p>}
                             </>
                         ) : (
                             <>
                                 <h2 className="text-3xl font-bold text-muted-foreground">Battle Completed</h2>
                                 {myResult && (
-                                    <p className="text-lg">
-                                        You placed {participants.indexOf(myResult) + 1}th
-                                    </p>
+                                    <div className="space-y-1">
+                                        <p className="text-lg">You placed {participants.indexOf(myResult) + 1}th</p>
+                                        {eloDiff && <p className={cn("text-lg", myResult.elo_change && myResult.elo_change < 0 ? "text-red-400" : "text-muted-foreground")}>{eloDiff} ELO</p>}
+                                    </div>
                                 )}
                             </>
                         )}

@@ -83,7 +83,7 @@ fi
 echo ""
 echo "Checking directory structure:"
 echo -n "  Frontend... "
-if [ -d "codeverse-live/src" ]; then
+if [ -d "code-arena-live/src" ]; then
     echo "✓"
 else
     echo "✗"
@@ -91,7 +91,7 @@ else
 fi
 
 echo -n "  Backend... "
-if [ -d "codeverse-live/server/src" ]; then
+if [ -d "code-arena-live/server/src" ]; then
     echo "✓"
 else
     echo "✗"
@@ -99,7 +99,7 @@ else
 fi
 
 echo -n "  Microservice... "
-if [ -d "codeverse-microservices/user-service/src" ]; then
+if [ -d "code-arena-microservices/user-service/src" ]; then
     echo "✓"
 else
     echo "✗"

@@ -111,28 +111,20 @@ export default function BattleArena() {
             constraints: room.constraints || []
           });
 
-          // Find opponent
+          // Find opponent directly from room participants (which already includes profile data)
           if (room.participants && user) {
             const opponent = room.participants.find((p: any) => p.user_id !== user.id);
             if (opponent) {
-              // We need to fetch opponent profile details if not in participant list
-              // For now, assume some details are there or fetch separately.
-              // Assuming backend returns basic user info in participants logic (which we updated)
-              // The getRoomState query needs to join user_profiles to get username/tier/etc.
-              // If not, we might lack username. Let's assume username is present or fetch it.
-              // Actually getRoomState returns just IDs mostly. 
-              // For a quick fix, we'll use placeholder or fetch user.
+              // Use the profile data provided by the backend (getRoomState joins table)
+              setOpponentData({
+                username: opponent.username || 'Opponent',
+                elo: opponent.elo || 1200, // Backend might need to select this too!
+                avatar: opponent.avatar,
+                tier: opponent.tier // Backend check needed
+              });
 
-              // Fetch opponent profile
-              try {
-                const oppRes = await api.get(`/api/users/${opponent.user_id}`);
-                const oppData = await oppRes.json();
-                if (oppData.success) {
-                  setOpponentData(oppData.user);
-                }
-              } catch (e) {
-                console.error("Failed to fetch opponent", e);
-              }
+              // Note: 'elo' and 'tier' might not be in the getRoomState SELECT query yet.
+              // Let's verify update server/src/services/matchRoom.js to include u.elo, u.tier
             }
           }
         }
@@ -616,7 +608,12 @@ export default function BattleArena() {
               <div className="flex-1">
                 <p className="font-semibold text-foreground">{opponentData?.username || 'Waiting...'}</p>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-xs text-primary font-mono">{opponentData?.elo || '---'}</span>
+                  <span className="text-xs text-primary font-mono">{opponentData?.elo || '---'} ELO</span>
+                  {opponentData?.tier && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 uppercase">
+                      {opponentData.tier}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

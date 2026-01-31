@@ -1,7 +1,7 @@
-E:\Amarlogiclabsprojects\ALL0C081Project\code-arena-microservices\user-service\src\main\java\com\codearena\userservice\repository\UserRepository.java
-E:\Amarlogiclabsprojects\ALL0C081Project\code-arena-microservices\user-service\src\main\java\com\codearena\userservice\dto\ApiResponse.java
-E:\Amarlogiclabsprojects\ALL0C081Project\code-arena-microservices\user-service\src\main\java\com\codearena\userservice\UserServiceApplication.java
-E:\Amarlogiclabsprojects\ALL0C081Project\code-arena-microservices\user-service\src\main\java\com\codearena\userservice\model\User.java
-E:\Amarlogiclabsprojects\ALL0C081Project\code-arena-microservices\user-service\src\main\java\com\codearena\userservice\service\UserService.java
-E:\Amarlogiclabsprojects\ALL0C081Project\code-arena-microservices\user-service\src\main\java\com\codearena\userservice\dto\UserDTO.java
-E:\Amarlogiclabsprojects\ALL0C081Project\code-arena-microservices\user-service\src\main\java\com\codearena\userservice\controller\UserController.java
+E:\Amarlogiclabsprojects\ALL0C081Project\codeverse-microservices\user-service\src\main\java\com\codearena\userservice\controller\UserController.java
+E:\Amarlogiclabsprojects\ALL0C081Project\codeverse-microservices\user-service\src\main\java\com\codearena\userservice\model\User.java
+E:\Amarlogiclabsprojects\ALL0C081Project\codeverse-microservices\user-service\src\main\java\com\codearena\userservice\repository\UserRepository.java
+E:\Amarlogiclabsprojects\ALL0C081Project\codeverse-microservices\user-service\src\main\java\com\codearena\userservice\service\UserService.java
+E:\Amarlogiclabsprojects\ALL0C081Project\codeverse-microservices\user-service\src\main\java\com\codearena\userservice\dto\ApiResponse.java
+E:\Amarlogiclabsprojects\ALL0C081Project\codeverse-microservices\user-service\src\main\java\com\codearena\userservice\dto\UserDTO.java
+E:\Amarlogiclabsprojects\ALL0C081Project\codeverse-microservices\user-service\src\main\java\com\codearena\userservice\UserServiceApplication.java

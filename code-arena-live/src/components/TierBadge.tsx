@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
-import { Diamond, Circle, Star, Plus, Crown } from "lucide-react";
+import { Diamond, Circle, Star, Plus, Crown, Cloud, Zap, Sun, Moon, Globe, Trophy } from "lucide-react";
 
-export type TierName = "Nova" | "Stellar" | "Luminary" | "Cosmic" | "Celestia";
+export type TierName = "Nebula" | "Nova" | "Stellar" | "Luminary" | "Cosmic" | "Galactic" | "Celestia" | "Universal";
 
 interface TierInfo {
   name: TierName;
@@ -14,52 +14,79 @@ interface TierInfo {
 
 export const tiers: TierInfo[] = [
   {
-    name: "Nova",
-    range: "800–1099",
-    icon: Diamond,
+    name: "Nebula",
+    range: "< 1000",
+    icon: Cloud,
     level: "Beginner",
-    className: "tier-nova",
+    className: "tier-nebula text-slate-400 bg-slate-400/10 border-slate-400/20",
+    glowClass: "shadow-slate-500/50",
+  },
+  {
+    name: "Nova",
+    range: "1000–1199",
+    icon: Zap,
+    level: "Rookie",
+    className: "tier-nova text-cyan-400 bg-cyan-400/10 border-cyan-400/20",
     glowClass: "shadow-cyan-500/50",
   },
   {
     name: "Stellar",
-    range: "1100–1399",
-    icon: Circle,
+    range: "1200–1399",
+    icon: Star,
     level: "Intermediate",
-    className: "tier-stellar",
-    glowClass: "shadow-purple-500/50",
+    className: "tier-stellar text-blue-400 bg-blue-400/10 border-blue-400/20",
+    glowClass: "shadow-blue-500/50",
   },
   {
     name: "Luminary",
-    range: "1400–1699",
-    icon: Star,
+    range: "1400–1599",
+    icon: Sun,
     level: "Advanced",
-    className: "tier-luminary",
+    className: "tier-luminary text-yellow-400 bg-yellow-400/10 border-yellow-400/20",
     glowClass: "shadow-yellow-500/50",
   },
   {
     name: "Cosmic",
-    range: "1700–1999",
-    icon: Plus,
+    range: "1600–1799",
+    icon: Moon,
     level: "Expert",
-    className: "tier-cosmic",
-    glowClass: "shadow-orange-500/50",
+    className: "tier-cosmic text-purple-400 bg-purple-400/10 border-purple-400/20",
+    glowClass: "shadow-purple-500/50",
+  },
+  {
+    name: "Galactic",
+    range: "1800–1999",
+    icon: Globe,
+    level: "Elite",
+    className: "tier-galactic text-pink-400 bg-pink-400/10 border-pink-400/20",
+    glowClass: "shadow-pink-500/50",
   },
   {
     name: "Celestia",
-    range: "2000+",
+    range: "2000–2399",
     icon: Crown,
     level: "Master",
-    className: "tier-celestia",
-    glowClass: "shadow-pink-500/50",
+    className: "tier-celestia text-orange-500 bg-orange-500/10 border-orange-500/20",
+    glowClass: "shadow-orange-500/50",
+  },
+  {
+    name: "Universal",
+    range: "2400+",
+    icon: Trophy,
+    level: "Legend",
+    className: "tier-universal text-red-500 bg-red-500/10 border-red-500/20",
+    glowClass: "shadow-red-500/50",
   },
 ];
 
 export function getTierByElo(elo: number): TierInfo {
-  if (elo >= 2000) return tiers[4];
-  if (elo >= 1700) return tiers[3];
-  if (elo >= 1400) return tiers[2];
-  if (elo >= 1100) return tiers[1];
+  if (elo >= 2400) return tiers[7];
+  if (elo >= 2000) return tiers[6];
+  if (elo >= 1800) return tiers[5];
+  if (elo >= 1600) return tiers[4];
+  if (elo >= 1400) return tiers[3];
+  if (elo >= 1200) return tiers[2];
+  if (elo >= 1000) return tiers[1];
   return tiers[0];
 }
 

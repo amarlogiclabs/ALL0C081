@@ -61,7 +61,7 @@ echo [2/5] Starting Java User Microservice...
 echo ════════════════════════════════════════════════════════════
 echo.
 
-cd /d "codeverse-microservices\user-service" || exit /b 1
+cd /d "code-arena-microservices\user-service" || exit /b 1
 echo Starting Spring Boot application on port 8090...
 echo This window will show Java service logs...
 echo.
@@ -74,7 +74,7 @@ echo [3/5] Starting Express Backend Server...
 echo ════════════════════════════════════════════════════════════
 echo.
 
-cd /d "..\..\codeverse-live\server" || exit /b 1
+cd /d "..\..\code-arena-live\server" || exit /b 1
 echo Starting Express backend on port 5000...
 echo Database: MySQL (%MYSQL_HOST%:%MYSQL_PORT%)
 echo.
