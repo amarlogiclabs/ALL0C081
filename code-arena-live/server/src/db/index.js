@@ -71,6 +71,36 @@ await initializeDatabase();
 
 // Helper function to execute queries
 export const query = async (sql, values = []) => {
+  const normalizedSql = sql.trim().toUpperCase();
+
+  // INTERCEPTOR: Return mock data for demo queries even if on real DB
+  // 1. Analytics / History Query
+  if (normalizedSql.includes('FROM MATCH_RESULTS MR') && normalizedSql.includes('JOIN MATCHES M')) {
+    const userId = values[1] || 'user_demo_001';
+    return mockDb.tables.mock_match_history.map(h => ({ ...h, user_id: userId }));
+  }
+
+  // 2. Leaderboard Query
+  if (normalizedSql.includes('FROM USER_PROFILES') && normalizedSql.includes('ORDER BY ELO DESC')) {
+    return await mockDb.query(sql, values);
+  }
+
+  // 3. User Profile / Stats Query (Demo Interception)
+  if (normalizedSql.includes('FROM USER_PROFILES') && normalizedSql.includes('WHERE ID = ?')) {
+    const userId = values[0];
+    return [{
+      id: userId,
+      username: userId === 'user_demo_001' ? 'user_demo_001' : 'demo_user',
+      email: 'demo@example.com',
+      elo: 1650,
+      tier: 'Cosmic',
+      total_matches: 45,
+      wins: 32,
+      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`,
+      created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+    }];
+  }
+
   try {
     if (useMockDb) {
       return await db.query(sql, values);

@@ -524,7 +524,7 @@ export default function Practice() {
     <div className="flex flex-col min-h-screen bg-black">
       <Navbar />
 
-      <div className="flex-1 max-w-7xl mx-auto height-full w-full py-8 px-6">
+      <div className="flex-1 max-w-7xl mx-auto h-screen w-full py-8 px-6 mt-[70px]">
         <div className="mb-8 bg-gradient-to-r from-gray-900 to-gray-800 border border-gray-700 rounded-xl p-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">

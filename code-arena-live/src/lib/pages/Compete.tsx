@@ -326,8 +326,8 @@ export default function Compete() {
                           <Swords className="w-12 h-12 text-white" />
                         </div>
 
-                        <h2 className="text-2xl font-bold mb-4">Ready for Battle?</h2>
-                        <p className="text-muted-foreground mb-8">
+                        <h2 className="text-2xl font-bold mb-4 text-center">Ready for Battle?</h2>
+                        <p className="text-muted-foreground mb-8 text-center">
                           You'll be matched with an opponent of similar Elo rating
                         </p>
 
@@ -335,7 +335,7 @@ export default function Compete() {
                           variant="hero"
                           size="xl"
                           onClick={startMatchmaking}
-                          className="mb-8"
+                          className="mb-8 mx-auto flex items-center justify-center"
                         >
                           <Swords className="w-5 h-5" />
                           Find Match

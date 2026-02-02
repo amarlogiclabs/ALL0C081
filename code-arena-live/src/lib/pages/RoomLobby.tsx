@@ -239,7 +239,7 @@ export default function RoomLobby() {
     <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col">
       <Navbar />
 
-      <main className="flex-1 py-12 px-4 sm:px-6 lg:px-8">
+      <main className="flex-1 py-12 px-4 sm:px-6 lg:px-8 mt-[70px]">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="mb-8">
