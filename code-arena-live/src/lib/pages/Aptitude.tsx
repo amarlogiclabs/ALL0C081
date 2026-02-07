@@ -1,13 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
-import { 
-  Brain, 
-  Calculator, 
-  MessageSquare, 
-  Puzzle, 
-  Clock, 
+import { api } from "@/lib/api";
+import {
+  Brain,
+  Calculator,
+  MessageSquare,
+  Puzzle,
+  Clock,
   Trophy,
   ChevronRight,
   Play,
@@ -244,10 +245,10 @@ function TestCard({ category, onStart }: { category: TestCategory; onStart: (id:
             </div>
           </div>
 
-          <Button 
+          <Button
             onClick={() => onStart(category.id)}
-            variant="outline" 
-            size="sm" 
+            variant="outline"
+            size="sm"
             className="group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
           >
             <Play className="w-4 h-4" />
@@ -260,11 +261,11 @@ function TestCard({ category, onStart }: { category: TestCategory; onStart: (id:
   );
 }
 
-function TestQuestions({ 
-  category, 
+function TestQuestions({
+  category,
   onComplete,
-  onCancel 
-}: { 
+  onCancel
+}: {
   category: TestCategory;
   onComplete: (result: TestResult) => void;
   onCancel: () => void;
@@ -323,8 +324,8 @@ function TestQuestions({
                           optIdx === q.correctAnswer
                             ? "border-green-500 bg-green-500/10"
                             : optIdx === selectedAnswers[idx] && !isCorrect
-                            ? "border-red-500 bg-red-500/10"
-                            : "border-gray-700"
+                              ? "border-red-500 bg-red-500/10"
+                              : "border-gray-700"
                         )}
                       >
                         <span className="font-mono text-sm">{String.fromCharCode(65 + optIdx)}.</span> {option}
@@ -355,7 +356,7 @@ function TestQuestions({
       <div className="bg-gray-950 border border-gray-800 rounded-2xl w-full max-w-3xl p-8">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <button 
+            <button
               onClick={onCancel}
               className="flex items-center gap-2 text-gray-400 hover:text-white mb-4"
             >
@@ -367,7 +368,7 @@ function TestQuestions({
           <div className="text-right">
             <p className="text-sm text-gray-400">Question {currentQuestion + 1} of {questions.length}</p>
             <div className="w-48 h-2 bg-gray-800 rounded-full overflow-hidden mt-2">
-              <div 
+              <div
                 className="h-full bg-gradient-to-r from-primary to-accent transition-all"
                 style={{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }}
               />
@@ -397,7 +398,7 @@ function TestQuestions({
         </div>
 
         <div className="flex gap-3">
-          <Button 
+          <Button
             onClick={() => setCurrentQuestion(Math.max(0, currentQuestion - 1))}
             disabled={currentQuestion === 0}
             variant="outline"
@@ -406,7 +407,7 @@ function TestQuestions({
           </Button>
 
           {currentQuestion < questions.length - 1 ? (
-            <Button 
+            <Button
               onClick={() => setCurrentQuestion(currentQuestion + 1)}
               className="flex-1 bg-primary"
             >
@@ -414,7 +415,7 @@ function TestQuestions({
             </Button>
           ) : (
             <>
-              <Button 
+              <Button
                 onClick={() => setShowReview(true)}
                 className="flex-1 bg-blue-600 hover:bg-blue-700"
               >
@@ -430,47 +431,56 @@ function TestQuestions({
 
 export default function Aptitude() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [testResults, setTestResults] = useState<TestResult[]>([
-    {
-      categoryId: "quantitative",
-      categoryTitle: "Quantitative Aptitude",
-      score: 15,
-      total: 30,
-      percentage: 50,
-      date: "Jan 20, 2025",
-    },
-    {
-      categoryId: "verbal",
-      categoryTitle: "Verbal Ability",
-      score: 22,
-      total: 25,
-      percentage: 88,
-      date: "Jan 18, 2025",
-    },
-  ]);
+  const [testResults, setTestResults] = useState<TestResult[]>([]);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const res = await api.get('/api/users/analytics');
+        const data = await res.json();
+        if (data.success && data.analytics.aptitudeHistory) {
+          setTestResults(data.analytics.aptitudeHistory);
+        }
+      } catch (err) {
+        console.error("Failed to fetch aptitude history", err);
+      }
+    };
+    fetchHistory();
+  }, []);
 
   const currentCategory = testCategories.find((cat) => cat.id === selectedCategory);
 
   // Calculate overall readiness
-  const totalCompleted = testCategories.reduce((acc, cat) => acc + cat.completed, 0);
-  const totalTests = testCategories.reduce((acc, cat) => acc + cat.total, 0);
-  const readinessScore = Math.round((totalCompleted / totalTests) * 100);
+  const totalCompleted = testCategories.reduce((acc, cat) => acc + (cat.completed || 0), 0);
+  const totalTests = testCategories.reduce((acc, cat) => acc + (cat.total || 0), 0);
+  const readinessScore = totalTests > 0 ? Math.round((totalCompleted / totalTests) * 100) : 0;
 
-  const handleTestComplete = (result: TestResult) => {
-    // Save to localStorage for profile to display
-    const existingHistory = localStorage.getItem("aptitudeTestHistory");
-    const history = existingHistory ? JSON.parse(existingHistory) : [];
-    localStorage.setItem("aptitudeTestHistory", JSON.stringify([result, ...history]));
-    
-    setTestResults([result, ...testResults]);
-    setSelectedCategory(null);
+  const handleTestComplete = async (result: TestResult) => {
+    try {
+      // Save to backend
+      await api.post('/api/practice/aptitude/result', {
+        categoryId: result.categoryId,
+        categoryTitle: result.categoryTitle,
+        score: result.score,
+        total: result.total,
+        percentage: result.percentage
+      });
+
+      setTestResults([result, ...testResults]);
+      setSelectedCategory(null);
+    } catch (error) {
+      console.error("Failed to save test result:", error);
+      alert("Test completed but failed to save result to server.");
+      setTestResults([result, ...testResults]);
+      setSelectedCategory(null);
+    }
   };
 
   if (currentCategory) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <TestQuestions 
+        <TestQuestions
           category={currentCategory}
           onComplete={handleTestComplete}
           onCancel={() => setSelectedCategory(null)}
@@ -495,7 +505,7 @@ export default function Aptitude() {
               <span className="gradient-text">Aptitude Tests</span>
             </h1>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Prepare for placements with comprehensive aptitude assessments. 
+              Prepare for placements with comprehensive aptitude assessments.
               Track your progress and identify areas for improvement.
             </p>
           </div>

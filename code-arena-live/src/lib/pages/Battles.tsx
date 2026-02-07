@@ -5,23 +5,17 @@ import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { TierBadge, getTierByElo } from "@/components/TierBadge";
 import { useAuth } from "@/contexts/AuthContext";
-import { 
-  Swords, 
-  Users, 
-  Clock, 
+import {
+  Swords,
+  Users,
+  Clock,
   Loader2,
   X,
   Zap,
   Shield
 } from "lucide-react";
 
-/**
- * TEMPORARY: This component uses mock opponent data.
- * TODO: Replace mock data with actual API calls to MySQL backend:
- * 1. Create GET /api/matchmaking/opponents endpoint to find players with similar ELO
- * 2. Create POST /api/battles endpoint to create a new battle
- * Then update the startMatchmaking and createBattle functions to call these endpoints.
- */
+import { api } from "@/lib/api";
 
 type MatchmakingState = "idle" | "searching" | "found";
 
@@ -37,72 +31,77 @@ export default function Battles() {
   const startMatchmaking = () => {
     setMatchmakingState("searching");
     setSearchTime(0);
-    
-    // Simulate search timer
+
     const interval = setInterval(() => {
       setSearchTime((prev) => prev + 1);
     }, 1000);
 
-    // Fetch available opponents
-    const fetchOpponents = async () => {
+    const fetchOpponentsAndMatch = async () => {
       try {
-        // TODO: Fetch from MySQL backend API when ready
-        // For now, use mock opponents
-        const mockOpponents = [
-          { id: 'bot_1', username: 'CodeMaster', tier: 'Platinum', elo: 1650, avatar: 'CM' },
-          { id: 'bot_2', username: 'ByteNinja', tier: 'Gold', elo: 1523, avatar: 'BN' },
-          { id: 'bot_3', username: 'AlgoExpert', tier: 'Gold', elo: 1480, avatar: 'AE' },
-        ];
-        setOpponents(mockOpponents);
+        const response = await api.get('/api/matchmaking/opponents');
+        const opponentsData = await response.json();
+
+        let foundOpponent = null;
+        if (Array.isArray(opponentsData) && opponentsData.length > 0) {
+          // Select a random opponent from the matched list to ensure variety
+          const randomIndex = Math.floor(Math.random() * opponentsData.length);
+          foundOpponent = opponentsData[randomIndex];
+        } else {
+          // Robust fallback mock
+          foundOpponent = {
+            id: 'user_mock_ai_' + Math.floor(Math.random() * 1000),
+            username: 'AI_Stratos',
+            tier: 'Stellar',
+            elo: 1400,
+            avatar: 'AS'
+          };
+        }
+
+        // Add a bit of artificial delay for "searching" feel
+        setTimeout(() => {
+          clearInterval(interval);
+          setMatchmakingState("found");
+          setSelectedOpponent(foundOpponent);
+
+          let count = 3;
+          const countdownInterval = setInterval(() => {
+            count -= 1;
+            setCountdownTime(count);
+
+            if (count === 0) {
+              clearInterval(countdownInterval);
+              createBattle(foundOpponent.id);
+            }
+          }, 1000);
+        }, Math.random() * 2000 + 1000);
+
       } catch (error) {
-        console.error('Error fetching opponents:', error);
+        console.error('Error during matchmaking:', error);
+        clearInterval(interval);
+        setMatchmakingState("idle");
       }
     };
 
-    fetchOpponents();
-
-    // Simulate match found after random time
-    setTimeout(() => {
-      clearInterval(interval);
-      setMatchmakingState("found");
-      
-      // Select random opponent
-      if (opponents.length > 0) {
-        const randomOpponent = opponents[Math.floor(Math.random() * opponents.length)];
-        setSelectedOpponent(randomOpponent);
-      } else {
-        // Fallback to hardcoded opponent if none found
-        setSelectedOpponent({
-          username: 'ByteNinja',
-          tier: 'Gold',
-          elo: 1523,
-          avatar: 'BN'
-        });
-      }
-      
-      // Start countdown to battle
-      let count = 3;
-      const countdownInterval = setInterval(() => {
-        count -= 1;
-        setCountdownTime(count);
-        
-        if (count === 0) {
-          clearInterval(countdownInterval);
-          // Create battle in database and navigate
-          createBattle();
-        }
-      }, 1000);
-    }, Math.random() * 5000 + 3000);
+    fetchOpponentsAndMatch();
   };
 
-  const createBattle = async () => {
+  const createBattle = async (opponentId: string) => {
     try {
-      // TODO: Create battle in MySQL backend API when ready
-      // For now, navigate with mock battle ID
-      const mockBattleId = 'battle_' + Math.random().toString(36).substr(2, 9);
-      navigate(`/battle/${mockBattleId}`);
+      const response = await api.post('/api/battles', {
+        player2_id: opponentId,
+        difficulty: userProfile?.tier === 'Bronze' ? 'Easy' : 'Medium'
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        navigate(`/battle/${data.battleId}`);
+      } else {
+        console.error('Failed to create battle:', data.error);
+        setMatchmakingState("idle");
+      }
     } catch (error) {
       console.error('Error creating battle:', error);
+      setMatchmakingState("idle");
     }
   };
 
@@ -120,7 +119,7 @@ export default function Battles() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      
+
       <main className="pt-24 pb-16 min-h-screen">
         <div className="container mx-auto px-4">
           <div className="max-w-2xl mx-auto text-center">
@@ -150,15 +149,15 @@ export default function Battles() {
                     <div className="w-24 h-24 mx-auto mb-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg glow-primary">
                       <Swords className="w-12 h-12 text-white" />
                     </div>
-                    
+
                     <h2 className="text-2xl font-bold mb-4">Ready for Battle?</h2>
                     <p className="text-muted-foreground mb-8">
                       You'll be matched with an opponent of similar Elo rating
                     </p>
 
-                    <Button 
-                      variant="hero" 
-                      size="xl" 
+                    <Button
+                      variant="hero"
+                      size="xl"
                       onClick={startMatchmaking}
                       className="mb-8"
                     >
@@ -186,7 +185,7 @@ export default function Battles() {
                       <Loader2 className="w-12 h-12 text-white animate-spin" />
                       <div className="absolute inset-0 rounded-full border-4 border-primary/30 animate-ping" />
                     </div>
-                    
+
                     <h2 className="text-2xl font-bold mb-2">Finding Opponent...</h2>
                     <p className="text-4xl font-mono font-bold text-accent mb-4">
                       {formatTime(searchTime)}
@@ -195,9 +194,9 @@ export default function Battles() {
                       Searching for players in your Elo range
                     </p>
 
-                    <Button 
-                      variant="outline" 
-                      size="lg" 
+                    <Button
+                      variant="outline"
+                      size="lg"
                       onClick={cancelMatchmaking}
                     >
                       <X className="w-4 h-4" />
@@ -211,9 +210,9 @@ export default function Battles() {
                     <div className="w-24 h-24 mx-auto mb-8 rounded-full bg-success flex items-center justify-center shadow-lg animate-scale-in">
                       <Zap className="w-12 h-12 text-white" />
                     </div>
-                    
+
                     <h2 className="text-2xl font-bold mb-6 text-success">Match Found!</h2>
-                    
+
                     {/* VS Display */}
                     <div className="flex items-center justify-center gap-8 mb-8">
                       {/* You */}

@@ -421,7 +421,7 @@ export const startMatch = async (roomId, hostId, problemId) => {
 };
 
 // Submit code for a participant
-export const submitCode = async (roomId, userId, code, language) => {
+export const submitCode = async (roomId, userId, code, language, options = {}) => {
   try {
     // Get room and problem info
     const rooms = await query(`SELECT * FROM match_rooms WHERE id = ?`, [roomId]);
@@ -437,8 +437,14 @@ export const submitCode = async (roomId, userId, code, language) => {
     }
 
     // Execute code server-side against all test cases
-    const { runTestSuite } = await import('./compiler.js');
-    const executionResult = await runTestSuite(code, language, testCases);
+    let executionResult;
+
+    if (options.isBot && options.mockResult) {
+      executionResult = options.mockResult;
+    } else {
+      const { runTestSuite } = await import('./compiler.js');
+      executionResult = await runTestSuite(code, language, testCases);
+    }
 
     // Update submission
     await query(
@@ -489,40 +495,80 @@ export const submitCode = async (roomId, userId, code, language) => {
         );
 
         let winnerId = null;
-        let loserId = null;
+        let player1 = scores[0];
+        let player2 = scores[1];
 
-        const p1 = scores[0];
-        const p2 = scores[1];
-
-        // Ensure both participants have scores
-        if (p1 && p2) {
+        if (player1 && player2) {
           // Logic: Most test cases passed, then fastest time
-          if (p1.test_cases_passed > p2.test_cases_passed) {
-            winnerId = p1.user_id;
-            loserId = p2.user_id;
-          } else if (p2.test_cases_passed > p1.test_cases_passed) {
-            winnerId = p2.user_id;
-            loserId = p1.user_id;
+          if (player1.test_cases_passed > player2.test_cases_passed) {
+            winnerId = player1.user_id;
+          } else if (player2.test_cases_passed > player1.test_cases_passed) {
+            winnerId = player2.user_id;
           } else {
             // Tie on test cases, check time
-            if (p1.execution_time_ms < p2.execution_time_ms) {
-              winnerId = p1.user_id;
-              loserId = p2.user_id;
+            if (player1.execution_time_ms < player2.execution_time_ms) {
+              winnerId = player1.user_id;
+            } else if (player2.execution_time_ms < player1.execution_time_ms) {
+              winnerId = player2.user_id;
             } else {
-              winnerId = p2.user_id;
-              loserId = p1.user_id;
+              // Exact tie (Draw)
+              winnerId = null;
             }
           }
 
-          if (winnerId && loserId) {
-            try {
-              const ratings = await processMatchResult(roomId, winnerId, loserId);
-              // Update match room with winner
+          try {
+            const ratings = await processMatchResult(roomId, player1.user_id, player2.user_id, winnerId);
+            // Update match room with winner
+            if (winnerId) {
               await query(`UPDATE match_rooms SET winner_id = ? WHERE id = ?`, [winnerId, roomId]);
-              console.log('ELO updated:', ratings);
-            } catch (eloErr) {
-              console.error('Failed to update ELO:', eloErr);
             }
+            console.log('ELO updated (1v1):', ratings);
+          } catch (eloErr) {
+            console.error('Failed to update ELO (1v1):', eloErr);
+          }
+        }
+      }
+      // Determine winner for 2v2
+      else if (matchType === '2v2' && participants.length === 4) {
+        const scores = await query(
+          `SELECT user_id, team_number, test_cases_passed, execution_time_ms FROM match_scores WHERE room_id = ?`,
+          [roomId]
+        );
+
+        const team1 = scores.filter(s => s.team_number === 1);
+        const team2 = scores.filter(s => s.team_number === 2);
+
+        if (team1.length === 2 && team2.length === 2) {
+          const t1Tests = team1.reduce((sum, p) => sum + (p.test_cases_passed || 0), 0);
+          const t1Time = team1.reduce((sum, p) => sum + (p.execution_time_ms || 0), 0);
+
+          const t2Tests = team2.reduce((sum, p) => sum + (p.test_cases_passed || 0), 0);
+          const t2Time = team2.reduce((sum, p) => sum + (p.execution_time_ms || 0), 0);
+
+          let winningTeam = null;
+          if (t1Tests > t2Tests) winningTeam = 1;
+          else if (t2Tests > t1Tests) winningTeam = 2;
+          else {
+            if (t1Time < t2Time) winningTeam = 1;
+            else if (t2Time < t1Time) winningTeam = 2;
+            else winningTeam = null;
+          }
+
+          try {
+            const team1Ids = team1.map(p => p.user_id);
+            const team2Ids = team2.map(p => p.user_id);
+            const ratings = await processTeamMatchResult(roomId, team1Ids, team2Ids, winningTeam);
+
+            if (winningTeam) {
+              // Store winning team or first member of winning team as reference? 
+              // Schema might need winner_team_number. For now let's just use winner_id of team lead if needed, 
+              // but elo is processed for all.
+              const winnerId = scores.find(s => s.team_number === winningTeam)?.user_id;
+              await query(`UPDATE match_rooms SET winner_id = ? WHERE id = ?`, [winnerId, roomId]);
+            }
+            console.log('ELO updated (2v2):', ratings);
+          } catch (eloErr) {
+            console.error('Failed to update ELO (2v2):', eloErr);
           }
         }
       }
@@ -574,6 +620,10 @@ export const getMatchLeaderboard = async (roomId) => {
     const scores = await query(
       `SELECT 
         ms.user_id,
+        u.username,
+        u.avatar,
+        u.elo,
+        u.tier,
         ms.team_number,
         ms.test_cases_passed,
         ms.test_cases_total,
@@ -582,6 +632,7 @@ export const getMatchLeaderboard = async (roomId) => {
         rp.status
        FROM match_scores ms
        LEFT JOIN room_participants rp ON ms.room_id = rp.room_id AND ms.user_id = rp.user_id
+       LEFT JOIN user_profiles u ON ms.user_id = u.id
        WHERE ms.room_id = ?
        ORDER BY ms.score DESC, ms.execution_time_ms ASC`,
       [roomId]
@@ -594,6 +645,80 @@ export const getMatchLeaderboard = async (roomId) => {
   }
 };
 
+// Create an instant match 1v1
+export const createInstantMatch = async (player1Id, player2Id, options = {}) => {
+  // 1. Create room
+  const roomData = await createRoom(player1Id, '1v1', null, options);
+  const roomId = roomData.roomId;
+
+  try {
+    // 2. Add Player 2
+    const joinedAt = new Date();
+    await query(
+      `INSERT INTO room_participants (room_id, user_id, team_number, status, joined_at)
+       VALUES (?, ?, ?, 'joined', ?)`,
+      [roomId, player2Id, null, joinedAt]
+    );
+
+    // 3. Start Match (assign problem, set status to in_progress)
+    await startMatch(roomId, player1Id, null);
+
+    // 4. Check if Player 2 is a bot (mock user)
+    // If so, simulate their gameplay
+    if (player2Id.startsWith('user_mock_')) {
+      simulateBotPlay(roomId, player2Id);
+    }
+
+    return {
+      success: true,
+      roomId,
+      roomCode: roomData.roomCode
+    };
+  } catch (error) {
+    console.error('Error creating instant match:', error);
+    // Cleanup if possible?
+    throw error;
+  }
+};
+
+// Helper to simulate bot gameplay
+const simulateBotPlay = async (roomId, botId) => {
+  // Random delay between 10s and 45s to simulate coding time
+  const delay = Math.floor(Math.random() * 35000) + 10000;
+
+  console.log(`[Bot] ${botId} will play in ${Math.round(delay / 1000)}s`);
+
+  setTimeout(async () => {
+    try {
+      // Fetch bot ELO to determine success rate
+      const botProfile = await query('SELECT elo FROM user_profiles WHERE id = ?', [botId]);
+      const elo = botProfile[0]?.elo || 1200;
+
+      // Success chance based on ELO (simple logic)
+      const passChance = Math.min(0.95, Math.max(0.1, (elo - 600) / 1400));
+      const passed = Math.random() < passChance;
+
+      const totalTests = 10; // Assumption
+      const passedTests = passed ? 10 : Math.floor(Math.random() * 9);
+
+      // Simulate submission
+      await submitCode(roomId, botId, '// Bot Solution', 'javascript', {
+        isBot: true,
+        mockResult: {
+          verdict: passed ? 'ACCEPTED' : 'WRONG_ANSWER',
+          testCasesPassed: passedTests,
+          testCasesTotal: totalTests,
+          executionTime: Math.floor(Math.random() * 200)
+        }
+      });
+      console.log(`[Bot] ${botId} submitted solution. Passed: ${passedTests}/${totalTests}`);
+
+    } catch (e) {
+      console.error(`[Bot] Simulation failed for ${botId}:`, e);
+    }
+  }, delay);
+};
+
 export default {
   createRoom,
   joinRoom,
@@ -604,5 +729,6 @@ export default {
   submitCode,
   runCode,
   getMatchLeaderboard,
-  findAvailableRoom
+  findAvailableRoom,
+  createInstantMatch
 };

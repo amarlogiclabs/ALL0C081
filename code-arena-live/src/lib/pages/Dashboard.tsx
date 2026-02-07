@@ -2,34 +2,20 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { TierBadge, getTierByElo } from "@/components/TierBadge";
-import { 
-  Swords, 
-  BookOpen, 
-  Brain, 
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  Swords,
+  BookOpen,
+  Brain,
   Trophy,
   TrendingUp,
   Target,
   Flame,
   Clock,
-  ChevronRight
+  ChevronRight,
+  Loader2
 } from "lucide-react";
-import { Link } from "react-router-dom";
-
-// Mock user data
-const mockUser = {
-  username: "CosmicCoder42",
-  elo: 1456,
-  battles: 127,
-  wins: 78,
-  losses: 49,
-  streak: 5,
-  recentActivity: [
-    { type: "battle", result: "win", opponent: "ByteNinja", eloChange: +18, time: "2 hours ago" },
-    { type: "battle", result: "loss", opponent: "AlgoMaster", eloChange: -12, time: "5 hours ago" },
-    { type: "practice", problem: "Two Sum", difficulty: "Easy", time: "Yesterday" },
-    { type: "battle", result: "win", opponent: "CodeWarrior", eloChange: +15, time: "Yesterday" },
-  ],
-};
+import { Link, Navigate } from "react-router-dom";
 
 function StatCard({ icon: Icon, label, value, subValue, color }: {
   icon: React.ElementType;
@@ -73,13 +59,53 @@ function QuickAction({ icon: Icon, label, href, gradient }: {
 }
 
 export default function Dashboard() {
-  const tier = getTierByElo(mockUser.elo);
-  const winRate = ((mockUser.wins / mockUser.battles) * 100).toFixed(1);
+  const { userProfile, loading } = useAuth();
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Redirect to login if not authenticated
+  if (!userProfile) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Use real user data with fallback defaults
+  const elo = userProfile.elo || 1000;
+  const tier = getTierByElo(elo);
+  const totalMatches = userProfile.total_matches || 0;
+  const wins = userProfile.wins || 0;
+  const losses = totalMatches - wins;
+  const winRate = totalMatches > 0 ? ((wins / totalMatches) * 100).toFixed(1) : "0.0";
+
+  // Calculate ELO needed for next tier
+  const tierThresholds = [
+    { name: 'Universal', min: 2400 },
+    { name: 'Celestia', min: 2000 },
+    { name: 'Galactic', min: 1800 },
+    { name: 'Cosmic', min: 1600 },
+    { name: 'Luminary', min: 1400 },
+    { name: 'Stellar', min: 1200 },
+    { name: 'Nova', min: 1000 },
+    { name: 'Nebula', min: 0 }
+  ];
+
+  let eloToNextTier = 0;
+  for (let i = 0; i < tierThresholds.length - 1; i++) {
+    if (elo < tierThresholds[i].min) {
+      eloToNextTier = tierThresholds[i].min - elo;
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      
+
       <main className="pt-24 pb-16">
         <div className="container mx-auto px-4">
           {/* Profile Header */}
@@ -87,8 +113,12 @@ export default function Dashboard() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
               {/* Avatar */}
               <div className="relative">
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-3xl font-bold text-white shadow-lg">
-                  {mockUser.username[0]}
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-3xl font-bold text-white shadow-lg overflow-hidden">
+                  {userProfile.avatar?.startsWith('http') ? (
+                    <img src={userProfile.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    userProfile.username?.[0]?.toUpperCase() || 'U'
+                  )}
                 </div>
                 <div className="absolute -bottom-2 -right-2">
                   <TierBadge tier={tier.name} size="sm" />
@@ -98,13 +128,13 @@ export default function Dashboard() {
               {/* Info */}
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
-                  <h1 className="text-2xl sm:text-3xl font-bold">{mockUser.username}</h1>
+                  <h1 className="text-2xl sm:text-3xl font-bold">{userProfile.username}</h1>
                   <TierBadge tier={tier.name} size="md" showLabel />
                 </div>
                 <div className="flex items-center gap-4 text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <Trophy className="w-4 h-4 text-accent" />
-                    <span className="font-mono font-semibold text-foreground">{mockUser.elo}</span> Elo
+                    <span className="font-mono font-semibold text-foreground">{elo}</span> Elo
                   </span>
                   <span>•</span>
                   <span>{tier.level}</span>
@@ -124,30 +154,30 @@ export default function Dashboard() {
 
           {/* Stats Grid */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <StatCard 
-              icon={Swords} 
-              label="Total Battles" 
-              value={mockUser.battles}
+            <StatCard
+              icon={Swords}
+              label="Total Battles"
+              value={totalMatches}
               color="from-primary to-pink-500"
             />
-            <StatCard 
-              icon={TrendingUp} 
-              label="Win Rate" 
+            <StatCard
+              icon={TrendingUp}
+              label="Win Rate"
               value={`${winRate}%`}
-              subValue={`${mockUser.wins}W / ${mockUser.losses}L`}
+              subValue={`${wins}W / ${losses}L`}
               color="from-success to-emerald-400"
             />
-            <StatCard 
-              icon={Flame} 
-              label="Win Streak" 
-              value={mockUser.streak}
+            <StatCard
+              icon={Flame}
+              label="Wins"
+              value={wins}
               color="from-tier-cosmic to-red-400"
             />
-            <StatCard 
-              icon={Target} 
-              label="Next Tier" 
-              value={`${1700 - mockUser.elo}`}
-              subValue="Elo needed"
+            <StatCard
+              icon={Target}
+              label="Next Tier"
+              value={eloToNextTier > 0 ? eloToNextTier : 'Max!'}
+              subValue={eloToNextTier > 0 ? "Elo needed" : ""}
               color="from-tier-luminary to-amber-400"
             />
           </div>
@@ -156,34 +186,34 @@ export default function Dashboard() {
           <div className="mb-8">
             <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <QuickAction 
-                icon={Swords} 
-                label="Start Battle" 
+              <QuickAction
+                icon={Swords}
+                label="Start Battle"
                 href="/compete"
                 gradient="from-primary to-pink-500"
               />
-              <QuickAction 
-                icon={BookOpen} 
-                label="Practice" 
+              <QuickAction
+                icon={BookOpen}
+                label="Practice"
                 href="/practice"
                 gradient="from-accent to-cyan-400"
               />
-              <QuickAction 
-                icon={Brain} 
-                label="Aptitude Test" 
+              <QuickAction
+                icon={Brain}
+                label="Aptitude Test"
                 href="/aptitude"
                 gradient="from-tier-stellar to-purple-400"
               />
-              <QuickAction 
-                icon={Trophy} 
-                label="Leaderboard" 
+              <QuickAction
+                icon={Trophy}
+                label="Leaderboard"
                 href="/leaderboard"
                 gradient="from-tier-luminary to-amber-400"
               />
             </div>
           </div>
 
-          {/* Recent Activity */}
+          {/* Recent Activity - Empty State for new users */}
           <div className="glass-card p-6 rounded-2xl">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold">Recent Activity</h2>
@@ -192,47 +222,25 @@ export default function Dashboard() {
               </Button>
             </div>
 
-            <div className="space-y-4">
-              {mockUser.recentActivity.map((activity, index) => (
-                <div 
-                  key={index}
-                  className="flex items-center gap-4 p-4 rounded-xl bg-secondary/50 hover:bg-secondary transition-colors"
-                >
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                    activity.type === 'battle' 
-                      ? activity.result === 'win' 
-                        ? 'bg-success/20 text-success' 
-                        : 'bg-destructive/20 text-destructive'
-                      : 'bg-accent/20 text-accent'
-                  }`}>
-                    {activity.type === 'battle' ? <Swords className="w-5 h-5" /> : <BookOpen className="w-5 h-5" />}
-                  </div>
-
-                  <div className="flex-1">
-                    {activity.type === 'battle' ? (
-                      <>
-                        <p className="font-medium">
-                          {activity.result === 'win' ? 'Won' : 'Lost'} vs {activity.opponent}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {activity.eloChange! > 0 ? '+' : ''}{activity.eloChange} Elo
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        <p className="font-medium">Solved: {activity.problem}</p>
-                        <p className="text-sm text-muted-foreground">{activity.difficulty}</p>
-                      </>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Clock className="w-4 h-4" />
-                    {activity.time}
-                  </div>
+            {totalMatches === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Swords className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p className="mb-2">No battles yet!</p>
+                <p className="text-sm">Start your first battle to see your activity here.</p>
+                <Link to="/compete">
+                  <Button variant="default" className="mt-4">
+                    <Swords className="w-4 h-4 mr-2" />
+                    Find Your First Battle
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="text-center py-4 text-muted-foreground">
+                  <p>Battle history will be shown here</p>
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </main>
@@ -241,3 +249,4 @@ export default function Dashboard() {
     </div>
   );
 }
+

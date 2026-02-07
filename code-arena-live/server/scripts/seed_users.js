@@ -19,10 +19,27 @@ const NAMES = [
     "Closure", "Promise", "AsyncAwait", "Callback", "EventLoop",
     "DomMaster", "CssWizard", "HtmlHero", "ReactRocket", "VueViper",
     "AngularAce", "NodeNinja", "ExpressExpert", "MongoMaster", "SqlSlayer",
-    "GitGuru", "DockerDave", "K8sKing", "AwsAce", "AzureAgent"
+    "GitGuru", "DockerDave", "K8sKing", "AwsAce", "AzureAgent",
+    "MatrixCoder", "DataDrift", "KernelKey", "ShellShock", "ScriptSavant"
 ];
 
-const TIERS = ["Bronze", "Silver", "Gold", "Platinum", "Diamond"];
+const TIERS = [
+    { name: 'Universal', min: 2400 },
+    { name: 'Celestia', min: 2000 },
+    { name: 'Galactic', min: 1800 },
+    { name: 'Cosmic', min: 1600 },
+    { name: 'Luminary', min: 1400 },
+    { name: 'Stellar', min: 1200 },
+    { name: 'Nova', min: 1000 },
+    { name: 'Nebula', min: 0 }
+];
+
+const getTier = (elo) => {
+    for (const tier of TIERS) {
+        if (elo >= tier.min) return tier.name;
+    }
+    return 'Nebula';
+};
 
 const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
@@ -37,11 +54,12 @@ const main = async () => {
             port: parseInt(process.env.DB_PORT || '3306'),
         });
 
-        console.log('Seeding 50 mock users into user_profiles...');
+        const seedCount = 200;
+        console.log(`🌱 Seeding ${seedCount} mock users into user_profiles...`);
 
-        for (let i = 0; i < 50; i++) {
-            const id = randomUUID();
-            const username = `${NAMES[i % NAMES.length]}_${getRandomInt(10, 99)}`;
+        for (let i = 0; i < seedCount; i++) {
+            const id = 'user_mock_' + randomUUID().substring(0, 8);
+            const username = `${NAMES[i % NAMES.length]}${getRandomInt(10, 999)}`;
             const email = `${username.toLowerCase()}@example.com`;
             // Fixed password hash for 'password123'
             const password_hash = '$2a$10$X7.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1';
@@ -49,22 +67,29 @@ const main = async () => {
             const avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`;
 
             // Insert random profile stats
-            const matches_played = getRandomInt(0, 100);
-            const wins = getRandomInt(0, matches_played);
-            const elo = getRandomInt(800, 2500);
-            const tier = TIERS[Math.floor(elo / 500)] || "Diamond";
+            const matches_played = getRandomInt(5, 200);
+            const wins = getRandomInt(Math.floor(matches_played * 0.3), matches_played);
+            const elo = getRandomInt(800, 2600);
+            const tier = getTier(elo);
 
             await connection.query(
                 `INSERT INTO user_profiles (id, username, email, password_hash, avatar, elo, tier, total_matches, wins, created_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE 
+                 elo = VALUES(elo), 
+                 tier = VALUES(tier), 
+                 total_matches = VALUES(total_matches), 
+                 wins = VALUES(wins)`,
                 [id, username, email, password_hash, avatar, elo, tier, matches_played, wins, created_at]
             );
+
+            if (i % 20 === 0) console.log(`✅ Progress: ${i}/${seedCount}`);
         }
 
-        console.log('Successfully seeded 50 mock users.');
+        console.log(`✨ Successfully seeded ${seedCount} mock users with Cosmic tiers!`);
 
     } catch (error) {
-        console.error('Error seeding users:', error);
+        console.error('❌ Error seeding users:', error);
     } finally {
         if (connection) await connection.end();
     }

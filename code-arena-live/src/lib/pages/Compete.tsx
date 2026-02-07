@@ -30,6 +30,7 @@ import {
   Trophy,
   Mail,
   User as UserIcon,
+  AlertTriangle,
 } from "lucide-react";
 import {
   Select,
@@ -39,7 +40,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type MatchmakingState = "idle" | "searching" | "found";
+type MatchmakingState = "idle" | "searching" | "found" | "timeout";
 type TabType = "battles" | "friendly";
 
 export default function Compete() {
@@ -74,78 +75,121 @@ export default function Compete() {
     return localStorage.getItem("auth_token") || localStorage.getItem("token") || "";
   };
 
-  // Battles functions
+  // Battles functions - with real matchmaking
   const startMatchmaking = () => {
     setMatchmakingState("searching");
     setSearchTime(0);
+    setSelectedOpponent(null);
+    setOpponents([]);
 
-    const interval = setInterval(() => {
-      setSearchTime((prev) => prev + 1);
+    let elapsedTime = 0;
+    const maxSearchTime = 60; // 60 second timeout
+
+    // Timer interval
+    const timerInterval = setInterval(() => {
+      elapsedTime += 1;
+      setSearchTime(elapsedTime);
+
+      if (elapsedTime >= maxSearchTime) {
+        clearInterval(timerInterval);
+        // Also clear poll interval on timeout
+        const intervals = (window as any).__matchmakingIntervals;
+        if (intervals?.pollInterval) clearInterval(intervals.pollInterval);
+        handleMatchmakingTimeout();
+      }
     }, 1000);
 
-    const fetchOpponents = async () => {
+    // Poll for opponents every 3 seconds
+    const pollForOpponents = async () => {
       try {
-        const mockOpponents = [
-          { id: "bot_1", username: "CodeMaster", tier: "Platinum", elo: 1650, avatar: "CM" },
-          { id: "bot_2", username: "ByteNinja", tier: "Gold", elo: 1523, avatar: "BN" },
-          { id: "bot_3", username: "AlgoExpert", tier: "Gold", elo: 1480, avatar: "AE" },
-        ];
-        setOpponents(mockOpponents);
+        const token = getAuthToken();
+        const response = await api.get("/api/matchmaking/opponents", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        // Backend returns array directly, not wrapped in {opponents: [...]}
+        const opponents = await response.json();
+
+        if (Array.isArray(opponents) && opponents.length > 0) {
+          // Found opponents - stop searching and proceed
+          clearInterval(timerInterval);
+          clearInterval(pollInterval);
+
+          setOpponents(opponents);
+          const randomOpponent = opponents[Math.floor(Math.random() * opponents.length)];
+          setSelectedOpponent(randomOpponent);
+          setMatchmakingState("found");
+
+          // Start countdown to battle
+          let countdown = 3;
+          setCountdownTime(countdown);
+
+          const countdownInterval = setInterval(() => {
+            countdown -= 1;
+            setCountdownTime(countdown);
+
+            if (countdown === 0) {
+              clearInterval(countdownInterval);
+              createBattle(randomOpponent);
+            }
+          }, 1000);
+        }
       } catch (error) {
         console.error("Error fetching opponents:", error);
       }
     };
 
-    fetchOpponents();
+    // Start polling immediately and then every 3 seconds
+    pollForOpponents();
+    const pollInterval = setInterval(pollForOpponents, 3000);
 
-    setTimeout(() => {
-      clearInterval(interval);
-      setMatchmakingState("found");
-
-      if (opponents.length > 0) {
-        const randomOpponent = opponents[Math.floor(Math.random() * opponents.length)];
-        setSelectedOpponent(randomOpponent);
-      } else {
-        setSelectedOpponent({
-          username: "ByteNinja",
-          tier: "Gold",
-          elo: 1523,
-          avatar: "BN",
-        });
-      }
-
-      let count = 3;
-      const countdownInterval = setInterval(() => {
-        count -= 1;
-        setCountdownTime(count);
-
-        if (count === 0) {
-          clearInterval(countdownInterval);
-          createBattle();
-        }
-      }, 1000);
-    }, Math.random() * 5000 + 3000);
+    // Store interval IDs for cleanup on cancel
+    (window as any).__matchmakingIntervals = { timerInterval, pollInterval };
   };
 
-  const createBattle = async () => {
+  const handleMatchmakingTimeout = () => {
+    setMatchmakingState("timeout");
+  };
+
+  const createBattle = async (opponent: any) => {
     try {
-      // Call backend to find random match
-      const response = await api.post("/api/match/room/random", {});
+      const token = getAuthToken();
+      // Call backend to create battle with the matched opponent
+      const response = await api.post("/api/battles", {
+        player2_id: opponent.id,
+        difficulty: "medium"
+      }, {
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        }
+      });
       const data = await response.json();
 
-      if (data.success && data.roomId) {
+      if (data.success && data.battleId) {
+        navigate(`/battle/${data.battleId}`);
+      } else if (data.roomId) {
         navigate(`/battle/${data.roomId}`);
       } else {
-        console.error("Failed to find match:", data.error);
+        console.error("Failed to create battle:", data.error);
+        setMatchmakingState("idle");
       }
     } catch (error) {
       console.error("Error creating battle:", error);
+      setMatchmakingState("idle");
     }
   };
 
   const cancelMatchmaking = () => {
+    // Clear any running intervals
+    const intervals = (window as any).__matchmakingIntervals;
+    if (intervals) {
+      clearInterval(intervals.timerInterval);
+      clearInterval(intervals.pollInterval);
+    }
     setMatchmakingState("idle");
     setSearchTime(0);
+    setSelectedOpponent(null);
   };
 
   const formatTime = (seconds: number) => {
@@ -419,6 +463,39 @@ export default function Compete() {
                         <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                           <Shield className="w-4 h-4" />
                           <span>Secure battle environment ready</span>
+                        </div>
+                      </>
+                    )}
+
+                    {matchmakingState === "timeout" && (
+                      <>
+                        <div className="w-24 h-24 mx-auto mb-8 rounded-full bg-destructive/20 flex items-center justify-center shadow-lg">
+                          <AlertTriangle className="w-12 h-12 text-destructive" />
+                        </div>
+
+                        <h2 className="text-2xl font-bold mb-4 text-destructive">No Users Found</h2>
+                        <p className="text-muted-foreground mb-8">
+                          We couldn't find any opponents in your ELO range within 60 seconds.
+                          <br />
+                          Please try again later when more players are online.
+                        </p>
+
+                        <div className="flex gap-4 justify-center">
+                          <Button
+                            variant="default"
+                            size="lg"
+                            onClick={startMatchmaking}
+                          >
+                            <Swords className="w-4 h-4 mr-2" />
+                            Try Again
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="lg"
+                            onClick={() => setMatchmakingState("idle")}
+                          >
+                            Back
+                          </Button>
                         </div>
                       </>
                     )}

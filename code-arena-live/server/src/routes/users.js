@@ -73,31 +73,58 @@ router.get('/analytics', authMiddleware, async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'User not found' });
     const user = rows[0];
 
-    // 2. Get Match History (last 10)
+    // 2. Get Match History (last 20)
+    // We join from room_participants to include matches that were started but not necessarily finished
     const history = await query(`
-        SELECT m.id, m.match_type, m.created_at, mr.new_elo, mr.elo_change,
-               p.title as problem_title,
-               CASE 
-                 WHEN mp.is_winner = 1 THEN 'WIN' 
-                 WHEN mp.is_winner = 0 THEN 'LOSS' 
-                 ELSE 'DRAW' 
-               END as result
-        FROM match_results mr
-        JOIN matches m ON mr.match_id = m.id
-        JOIN match_rooms r ON m.room_id = r.id
-        LEFT JOIN coding_questions p ON r.problem_id = p.id
-        JOIN match_participants mp ON mp.match_id = m.id AND mp.user_id = ?
-        WHERE mr.user_id = ?
+        SELECT 
+          m.id as match_id,
+          m.match_type, 
+          m.status as match_status,
+          m.created_at, 
+          mr.old_elo,
+          mr.new_elo, 
+          mr.elo_change,
+          mr.result,
+          q.title as problem_title,
+          COALESCE(u2.username, (
+            SELECT u3.username FROM room_participants rp2 
+            JOIN user_profiles u3 ON rp2.user_id = u3.id
+            WHERE rp2.room_id = m.id AND rp2.user_id != ? LIMIT 1
+          )) as opponent_name
+        FROM room_participants rp
+        JOIN match_rooms m ON rp.room_id = m.id
+        LEFT JOIN match_results mr ON m.id = mr.match_id AND rp.user_id = mr.user_id
+        LEFT JOIN coding_questions q ON m.problem_id = q.id
+        LEFT JOIN user_profiles u2 ON mr.opponent_id = u2.id
+        WHERE rp.user_id = ?
         ORDER BY m.created_at DESC
-        LIMIT 10
+        LIMIT 20
      `, [userId, userId]);
 
-    // 3. Calculate Stats
+    // 2.1 Get Elo History for Chart (last 50 for better trend)
+    const eloHistory = await query(`
+      SELECT new_elo as elo, created_at as date
+      FROM match_results
+      WHERE user_id = ?
+      ORDER BY created_at DESC
+      LIMIT 50
+    `, [userId]);
+
+    // 3. Get Aptitude History
+    const aptitudeHistory = await query(`
+      SELECT category_id as categoryId, category_title as categoryTitle, score, total, percentage, DATE_FORMAT(created_at, '%b %d, %Y') as date
+      FROM user_aptitude_results
+      WHERE user_id = ?
+      ORDER BY created_at DESC
+      LIMIT 10
+    `, [userId]);
+
+    // 4. Calculate Stats
     const totalMatches = user.total_matches || 0;
     const wins = user.wins || 0;
     const winRate = totalMatches > 0 ? ((wins / totalMatches) * 100).toFixed(1) : 0;
 
-    // 4. Next Tier Logic
+    // 5. Next Tier Logic
     const tiers = [
       { name: 'Nebula', limit: 1000 },
       { name: 'Nova', limit: 1200 },
@@ -108,7 +135,7 @@ router.get('/analytics', authMiddleware, async (req, res) => {
       { name: 'Celestia', limit: 2400 },
       { name: 'Universal', limit: 9999 }
     ];
-    // Find current tier based on ELO
+
     let currentTierIdx = tiers.findIndex(t => t.limit > user.elo);
     if (currentTierIdx === -1) currentTierIdx = tiers.length - 1;
 
@@ -119,17 +146,17 @@ router.get('/analytics', authMiddleware, async (req, res) => {
     const pointsToNext = targetElo - user.elo;
     const progress = ((user.elo - prevLimit) / (targetElo - prevLimit)) * 100;
 
-
     res.json({
       success: true,
       analytics: {
-        eloHistory: history.map(h => ({ date: h.created_at, elo: h.new_elo })),
+        eloHistory: eloHistory.reverse(), // Reverse for chronological plotting (LTR)
         recentMatches: history,
+        aptitudeHistory, // Added real aptitude history
         stats: {
           winRate,
           totalMatches,
           wins,
-          currentStreak: 0 // advanced calculation needed
+          currentStreak: 0
         },
         progression: {
           currentTier: user.tier,
@@ -137,11 +164,7 @@ router.get('/analytics', authMiddleware, async (req, res) => {
           pointsToNext,
           progress: Math.min(100, Math.max(0, progress))
         },
-        achievements: [
-          { title: 'First Win', description: 'Won your first live battle', date: '2025-01-15' },
-          { title: 'Problem Solver', description: 'Solved 10 problems', date: '2025-01-20' },
-          { title: 'Speed Demon', description: 'Solved a problem in under 5 minutes', date: '2025-01-25' }
-        ]
+        achievements: [] // Removed hardcoded achievements
       }
     });
   } catch (err) {

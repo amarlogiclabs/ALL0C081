@@ -7,6 +7,8 @@ import { Server } from 'socket.io';
 import authRoutes from './routes/auth.js';
 import usersRoutes from './routes/users.js';
 import matchRoutes from './routes/match.js';
+import battlesRoutes from './routes/battles.js';
+import matchmakingRoutes from './routes/matchmaking.js';
 import practiceRoutes from './routes/practice.js';
 import compilerRoutes from './routes/compiler.js';
 import setupMatchWebSocket, { setupBattleWebSocket } from './websocket/matchRoom.js';
@@ -121,6 +123,8 @@ app.get('/api', (req, res) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/matchmaking', matchmakingRoutes);
+app.use('/api/battles', battlesRoutes);
 app.use('/api/match', matchRoutes);
 app.use('/api/practice', practiceRoutes);
 app.use('/api/compiler', compilerRoutes);

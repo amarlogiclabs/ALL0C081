@@ -1,0 +1,36 @@
+REAL-TIME WEBSOCKET MATCHMAKING LOGIC
+====================================
+
+Architecture for Connecting Two Players Simultaneously:
+
+1. The Waiting Queue (Redis/Memory):
+   When a player clicks "Find Match", they are added to a "Matchmaking Queue". This queue can be stored in Redis or an in-memory data structure on the server.
+   
+2. WebSocket Handshake:
+   The client connects to a dedicated namespace (e.g., /matchmaking) via WebSockets (Socket.io).
+   
+3. The Matching Loop:
+   The server runs a background loop (or triggered on new entry) that checks the queue for pairs of players with:
+   - Compatible ELO ratings (e.g., ±150).
+   - Same requested difficulty levels.
+   - Low latency/proximity (optional).
+
+4. Simultaneous Join:
+   Once two compatible players are identified:
+   - The server generates a unique 'Battle ID'.
+   - The server sends a "MATCH_FOUND" event to BOTH players simultaneously via their WebSocket connection.
+   - The payload contains the Battle ID and the Opponent's profile data.
+   
+5. Automatic Navigation:
+   On receiving the "MATCH_FOUND" event, both clients are programmed to automatically navigate to the Battle Arena page (/battle/{battleId}).
+
+6. Dynamic ELO Tiers:
+   As players are joined, their current ELO is fetched from MySQL. After the battle, the result is processed through the ELO service to update their ratings and tiers (Nova, Cosmic, Nebula, etc.) in real-time.
+
+Benefits of this Approach:
+- Zero manual room creation: Players just click a button and wait.
+- Fairness: Only players of similar skill interact.
+- Real-time: Feedback is instantaneous through WebSockets.
+
+Implementation Tip:
+Use a "lock" mechanism in the database or Redis to ensure that a player isn't matched with multiple opponents at the exact same millisecond.

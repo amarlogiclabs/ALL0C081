@@ -20,7 +20,11 @@ import {
   Brain,
   BookOpen,
   Camera,
-  Loader2
+  Loader2,
+  User,
+  Gamepad2,
+  ArrowUpRight,
+  ArrowDownRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -33,24 +37,40 @@ interface TestResult {
   date: string;
 }
 
-function EloChart({ data }: { data: number[] }) {
-  const max = Math.max(...data);
-  const min = Math.min(...data);
+function EloChart({ data }: { data: any[] }) {
+  const eloValues = data.map(d => d.elo);
+  const max = Math.max(...eloValues);
+  const min = Math.min(...eloValues);
   const range = max - min || 1;
 
   if (data.length === 0) return <div className="h-32 flex items-center justify-center text-muted-foreground">No matches yet</div>;
 
   return (
-    <div className="h-32 flex items-end gap-1">
-      {data.map((elo, i) => {
-        const height = ((elo - min) / range) * 100;
+    <div className="h-32 flex items-end gap-1 px-2">
+      {data.map((item, i) => {
+        const height = ((item.elo - min) / range) * 100;
+        const dateStr = new Date(item.date).toLocaleDateString();
+        const trend = i > 0 ? (item.elo >= data[i - 1].elo ? "↑" : "↓") : "";
+
         return (
           <div
             key={i}
-            className="flex-1 bg-gradient-to-t from-primary to-accent rounded-t opacity-70 hover:opacity-100 transition-opacity"
-            style={{ height: `${Math.max(height, 10)}%` }}
-            title={`${elo} Elo`}
-          />
+            className={cn(
+              "flex-1 rounded-t transition-all duration-300 relative group/bar",
+              i === data.length - 1 ? "bg-primary" : "bg-primary/40 hover:bg-primary/70"
+            )}
+            style={{ height: `${Math.max(height, 15)}%`, minWidth: '4px' }}
+          >
+            {/* Simple tooltip simulation */}
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/bar:block bg-gray-900 border border-white/10 rounded px-2 py-1 text-[10px] whitespace-nowrap z-20 pointer-events-none">
+              <span className="font-bold text-accent">{item.elo}</span>
+              <span className="mx-1 text-white/50">•</span>
+              <span className="text-white/70">{dateStr}</span>
+              <span className={cn("ml-1 font-bold", item.elo >= (data[i - 1]?.elo || item.elo) ? "text-green-500" : "text-red-500")}>
+                {trend}
+              </span>
+            </div>
+          </div>
         );
       })}
     </div>
@@ -72,16 +92,7 @@ export default function Profile() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    // Load test history from localStorage
-    const savedTests = localStorage.getItem("aptitudeTestHistory");
-    if (savedTests) {
-      try {
-        const parsed = JSON.parse(savedTests);
-        setTestHistory(parsed);
-      } catch (e) {
-        console.error("Failed to parse test history:", e);
-      }
-    }
+    // Test history is now fetched via analytics API below
 
     // Fetch Analytics
     const fetchAnalytics = async () => {
@@ -90,6 +101,9 @@ export default function Profile() {
         const data = await res.json();
         if (data.success) {
           setAnalytics(data.analytics);
+          if (data.analytics.aptitudeHistory) {
+            setTestHistory(data.analytics.aptitudeHistory);
+          }
         }
       } catch (e) {
         console.error("Failed to fetch analytics", e);
@@ -164,7 +178,7 @@ export default function Profile() {
   const winRate = analytics?.stats?.winRate || "0.0";
   const totalMatches = analytics?.stats?.totalMatches || 0;
   const wins = analytics?.stats?.wins || 0;
-  const eloHistory = analytics?.eloHistory?.map((x: any) => x.elo) || [elo];
+  const eloHistory = analytics?.eloHistory || [{ elo, date: new Date().toISOString() }];
   const recentBattles = analytics?.recentMatches || [];
 
   const progression = analytics?.progression || {
@@ -362,53 +376,88 @@ export default function Profile() {
                 </div>
 
                 <div className="space-y-3">
-                  {(showAllBattles ? recentBattles : recentBattles.slice(0, 3)).map((battle: any, i: number) => (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between p-4 rounded-xl bg-secondary/50 hover:bg-secondary transition-colors"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div
-                          className={cn(
-                            "w-10 h-10 rounded-lg flex items-center justify-center",
-                            battle.result === "WIN"
-                              ? "bg-success/20 text-success"
-                              : "bg-destructive/20 text-destructive"
-                          )}
-                        >
-                          <Swords className="w-5 h-5" />
+                  {(showAllBattles ? recentBattles : recentBattles.slice(0, 5)).map((battle: any, i: number) => {
+                    const isWin = battle.result?.toLowerCase() === "win";
+                    const isLoss = battle.result?.toLowerCase() === "loss";
+                    const isDraw = battle.result?.toLowerCase() === "draw";
+                    const isCompleted = battle.match_status === "completed" && battle.result;
+
+                    let outcomeText = "Not Completed";
+                    if (isWin) outcomeText = "Win";
+                    else if (isLoss) outcomeText = "Loss";
+                    else if (isDraw) outcomeText = "Tie";
+
+                    return (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between p-4 rounded-xl bg-secondary/30 border border-white/5 hover:bg-secondary/50 hover:border-white/10 transition-all group"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div
+                            className={cn(
+                              "w-10 h-10 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110",
+                              isWin ? "bg-green-500/20 text-green-500" :
+                                isLoss ? "bg-red-500/20 text-red-500" :
+                                  isDraw ? "bg-amber-500/20 text-amber-500" :
+                                    "bg-white/10 text-white/50"
+                            )}
+                          >
+                            <Swords className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <p className="font-medium flex items-center gap-2">
+                              {battle.problem_title || 'Random Match'}
+                              <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-white/5 text-muted-foreground border border-white/10">
+                                {battle.match_type || 'Battles'}
+                              </span>
+                            </p>
+                            <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                              <User className="w-3 h-3" />
+                              {battle.opponent_name ? `vs ${battle.opponent_name}` : 'Random Opponent'}
+                              <span className="mx-1">•</span>
+                              <span className={cn(
+                                "font-bold text-[10px] tracking-wider",
+                                isWin ? "text-green-500" :
+                                  isLoss ? "text-red-500" :
+                                    isDraw ? "text-amber-500" : "text-white/30"
+                              )}>
+                                {outcomeText.toUpperCase()}
+                              </span>
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium flex items-center gap-2">
-                            {battle.problem_title || 'Battle'}
-                            <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-gray-700">
-                              {battle.match_type || 'Ranked'}
-                            </span>
-                          </p>
-                          <p className="text-sm text-muted-foreground capitalize">
-                            {battle.result}
+                        <div className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <p
+                              className={cn(
+                                "font-mono font-bold text-base",
+                                battle.elo_change > 0 ? "text-green-500" :
+                                  battle.elo_change < 0 ? "text-red-500" : "text-white/50"
+                              )}
+                            >
+                              {battle.elo_change > 0 ? "+" : ""}
+                              {battle.elo_change === 0 || !battle.elo_change ? "±0" : battle.elo_change}
+                            </p>
+                            {battle.elo_change > 0 ? (
+                              <ArrowUpRight className="w-4 h-4 text-green-500" />
+                            ) : battle.elo_change < 0 ? (
+                              <ArrowDownRight className="w-4 h-4 text-red-500" />
+                            ) : null}
+                          </div>
+                          <p className="text-[10px] text-muted-foreground flex items-center justify-end gap-1 mt-1 font-mono">
+                            <Clock className="w-3 h-3" />
+                            {new Date(battle.created_at).toLocaleDateString()} at {new Date(battle.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p
-                          className={cn(
-                            "font-mono font-semibold",
-                            battle.elo_change > 0 ? "text-success" : "text-destructive"
-                          )}
-                        >
-                          {battle.elo_change > 0 ? "+" : ""}
-                          {battle.elo_change}
-                        </p>
-                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {new Date(battle.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {recentBattles.length === 0 && (
-                    <div className="text-center text-muted-foreground py-4">No recent battles</div>
+                    <div className="bg-white/5 rounded-xl p-8 border border-dashed border-white/10 text-center">
+                      <Gamepad2 className="w-8 h-8 text-white/20 mx-auto mb-3" />
+                      <p className="text-muted-foreground font-medium">No battles recorded yet</p>
+                      <p className="text-xs text-muted-foreground/60 mt-1">Jump into the arena to test your skills!</p>
+                    </div>
                   )}
                 </div>
               </div>

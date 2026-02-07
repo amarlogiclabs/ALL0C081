@@ -57,11 +57,11 @@ export const signup = async (email, password, username) => {
     const userId = generateUserId();
     const avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`;
 
-    // Insert user
+    // Insert user with proper initial values
     await query(
-      `INSERT INTO user_profiles (id, email, username, password_hash, avatar, elo, tier) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [userId, email, username, passwordHash, avatar, 1000, 'Bronze']
+      `INSERT INTO user_profiles (id, email, username, password_hash, avatar, elo, tier, total_matches, wins) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [userId, email, username, passwordHash, avatar, 1000, 'Nova', 0, 0]
     );
 
     return { success: true, userId, message: 'User created successfully' };

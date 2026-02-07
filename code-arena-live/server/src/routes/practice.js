@@ -161,4 +161,25 @@ router.post('/run', authMiddleware, async (req, res) => {
     }
 });
 
+// Save aptitude test result
+router.post('/aptitude/result', authMiddleware, async (req, res) => {
+    const { categoryId, categoryTitle, score, total, percentage } = req.body;
+
+    if (!categoryId || typeof score === 'undefined' || !total) {
+        return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    try {
+        await query(
+            `INSERT INTO user_aptitude_results (user_id, category_id, category_title, score, total, percentage)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [req.userId, categoryId, categoryTitle, score, total, percentage]
+        );
+        res.json({ success: true, message: "Aptitude result saved" });
+    } catch (error) {
+        console.error("Aptitude Save Error:", error);
+        res.status(500).json({ error: "Failed to save aptitude result" });
+    }
+});
+
 export default router;
